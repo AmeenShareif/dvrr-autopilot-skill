@@ -2,8 +2,9 @@
 name: dvrr-autopilot
 description: >
   Regime-aware autonomous portfolio rebalancer for Public.com. Classifies market
-  conditions (trending, choppy, volatile), scores every holding with 12+ technical
-  indicators, computes optimal position sizes using Kelly/ATR/hybrid math, and
+  conditions (trending, choppy, volatile), scores every holding or one focused
+  ticker with 12+ technical indicators, computes optimal position sizes using
+  Kelly/ATR/hybrid math, and
   executes rebalance trades through the Public API — all in one agent invocation.
   Use this skill when the user asks to analyze their portfolio, detect the current
   market regime, get smart rebalance suggestions, or run an autonomous trading cycle
@@ -27,6 +28,9 @@ env:
     description: "Max single position as % of portfolio (default 0.10 = 10%)"
     required: false
     default: "0.10"
+  DVRR_TARGET_SYMBOL:
+    description: "Optional single ticker to analyze; when set, the skill fetches SPY plus that symbol only"
+    required: false
   POLYGON_API_KEY:
     description: "Polygon.io API key for live historical OHLCV data; if absent, the skill falls back to contest demo analysis"
     required: false
@@ -42,7 +46,7 @@ portfolio. Derived from a battle-tested autonomous trading agent running the DVR
 ## What This Skill Does
 
 1. **Authenticates** with Public.com and loads your portfolio (positions, balances, buying power)
-2. **Fetches historical OHLCV** data for SPY (market benchmark) and every holding via Polygon.io
+2. **Fetches historical OHLCV** data for SPY (market benchmark) and either the full portfolio or one focused ticker via Polygon.io
 3. **Classifies the market regime** — Trending (strong up/down), Choppy, or Volatile — using MA alignment, slope analysis, and volatility percentile ranking
 4. **Computes sleeve weights** — Dynamically allocates between TREND, BREAKOUT, and REVERSION strategies based on the detected regime
 5. **Scores every position** with 12+ technical indicators: SMA(50/200), EMA(20), RSI(14), MACD, Ichimoku Cloud, Bollinger Band Squeeze, ATR(14), momentum (3m/6m with recency skip), volume ratio
@@ -72,6 +76,11 @@ Environment loading precedence:
 - `scripts/.env` if present
 - repo-root `.env`
 
+Single-ticker mode:
+- Set `DVRR_TARGET_SYMBOL=NVDA` or run `python -m scripts --symbol NVDA`
+- The skill will fetch `SPY` plus that ticker only, instead of walking the entire holdings list
+- This is the recommended mode when the user asks about one symbol or the account has many holdings
+
 ### Get Rebalance Suggestions
 ```
 Run the DVRR autopilot on my portfolio in SUGGEST mode. Show me what trades it recommends and why.
@@ -88,6 +97,9 @@ What regime is the market in right now? Should I be more defensive or aggressive
 ```
 ```
 Score AAPL, MSFT, and NVDA — which one has the strongest trend setup right now?
+```
+```
+Analyze NVDA only and tell me whether it is a buy, hold, or sell candidate.
 ```
 ```
 Calculate optimal position size for buying TSLA given my current portfolio and risk tolerance.

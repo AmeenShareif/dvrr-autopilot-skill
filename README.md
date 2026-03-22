@@ -11,8 +11,8 @@ Built from a battle-tested trading agent running the **DVRR (Diversified Volatil
 | Step | Description | Public API Used |
 |------|-------------|-----------------|
 | 1. **Load Portfolio** | Fetches account balance, positions, P&L | Account, Positions |
-| 2. **Classify Regime** | Detects trending/choppy/volatile market using SPY | (Polygon.io for OHLCV) |
-| 3. **Score Holdings** | Computes 12+ technical indicators per position | Quotes |
+| 2. **Classify Regime** | Detects trending/choppy/volatile market using SPY; can focus on one ticker | (Polygon.io for OHLCV) |
+| 3. **Score Holdings** | Computes 12+ technical indicators per selected position | Quotes |
 | 4. **Size Trades** | Hybrid Kelly/ATR/confidence position sizing | — |
 | 5. **Generate Orders** | BUY underweight winners, SELL weak positions | Preflight |
 | 6. **Execute** | Places real orders through Public.com | Orders |
@@ -32,6 +32,7 @@ export PUBLIC_API_SECRET="your-public-api-secret"
 export PUBLIC_ACCOUNT_ID="your-account-id"
 export POLYGON_API_KEY="your-polygon-key"
 export DVRR_MODE="SUGGEST"          # ANALYZE | SUGGEST | EXECUTE
+export DVRR_TARGET_SYMBOL="NVDA"    # optional: analyze one ticker only
 ```
 
 Env-file precedence:
@@ -39,11 +40,18 @@ Env-file precedence:
 - `scripts/.env` if present
 - repo-root `.env`
 
+If `DVRR_TARGET_SYMBOL` is set, the skill fetches Polygon data for `SPY` plus that
+single ticker instead of walking the entire portfolio. This is the fastest way to
+analyze one name or avoid rate limits on large accounts.
+
 ### 3. Run
 
 ```bash
 # From this directory
 python -m scripts
+
+# Focus on one ticker only
+python -m scripts --symbol NVDA
 
 # Or ask your AI agent:
 # "Run the DVRR autopilot on my portfolio"
@@ -68,6 +76,8 @@ Upload this skill folder, or point Claude to `SKILL.md`:
 Analyze my Public.com portfolio using the DVRR autopilot skill.
 What regime is the market in? What trades should I make?
 ```
+If the user asks about one ticker, set `DVRR_TARGET_SYMBOL` or run
+`python -m scripts --symbol NVDA` so the skill only fetches SPY plus that symbol.
 
 ### Perplexity Computer
 Upload as a skill ZIP:

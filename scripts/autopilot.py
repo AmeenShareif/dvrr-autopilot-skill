@@ -3,9 +3,10 @@ DVRR Autopilot — Regime-Aware Autonomous Portfolio Rebalancer.
 
 This is the main orchestrator. It:
 1. Connects to Public.com and loads your portfolio
-2. Fetches historical OHLCV from Polygon.io for SPY + all holdings
+2. Fetches historical OHLCV from Polygon.io for SPY + either all holdings or one
+   focused ticker
 3. Classifies the market regime (trend + volatility)
-4. Scores every position with 12+ technical indicators
+4. Scores the requested positions with 12+ technical indicators
 5. Computes optimal position sizes with hybrid Kelly/ATR/confidence engine
 6. Generates rebalance trade intents (BUY underweight winners, SELL losers)
 7. Optionally executes trades through Public.com API
@@ -100,14 +101,21 @@ class AutopilotConfig:
     min_trend_score: float = 0.02
     rebalance_threshold: float = 0.20
     polygon_api_key: str = ""
+    target_symbol: Optional[str] = None
 
     @classmethod
     def from_env(cls) -> "AutopilotConfig":
+        target_symbol = (
+            os.environ.get("DVRR_TARGET_SYMBOL")
+            or os.environ.get("DVRR_SYMBOL")
+            or ""
+        ).strip().upper() or None
         return cls(
             mode=os.environ.get("DVRR_MODE", "SUGGEST").upper(),
             risk_per_trade=float(os.environ.get("DVRR_RISK_PER_TRADE", "0.02")),
             max_position_pct=float(os.environ.get("DVRR_MAX_POSITION_PCT", "0.10")),
             polygon_api_key=os.environ.get("POLYGON_API_KEY", ""),
+            target_symbol=target_symbol,
         )
 
 
@@ -133,6 +141,7 @@ class AutopilotResult:
     regime: RegimeState
     sleeve_weights: Dict[str, float]
     scale_factor: float
+    focus_symbol: Optional[str]
     scored_positions: List[Tuple[Position, IndicatorSet]]
     trade_intents: List[TradeIntent]
     executed_orders: List[Dict[str, Any]]
@@ -249,6 +258,21 @@ def get_sector(symbol: str) -> str:
     return SECTOR_MAP.get(symbol.upper(), "OTHER")
 
 
+def _make_placeholder_position(symbol: str) -> Position:
+    """Create a zeroed position shell for standalone ticker analysis."""
+    return Position(
+        symbol=symbol.upper(),
+        quantity=0.0,
+        market_value=0.0,
+        cost_basis=0.0,
+        unrealized_pnl=0.0,
+        unrealized_pnl_pct=0.0,
+        side="LONG",
+        instrument_type="EQUITY",
+        raw={},
+    )
+
+
 # ============================================================================
 # CORE AUTOPILOT LOGIC
 # ============================================================================
@@ -287,7 +311,27 @@ def run_autopilot(config: Optional[AutopilotConfig] = None) -> AutopilotResult:
 
     # ── Step 2: Fetch market data ──
     print("\n📊 Fetching historical data from Polygon.io...")
-    symbols = ["SPY"] + [p.symbol for p in positions if p.instrument_type == "EQUITY"]
+    target_symbol = (cfg.target_symbol or "").strip().upper() or None
+    focus_positions: List[Position]
+    if target_symbol:
+        target_position = next(
+            (
+                p
+                for p in positions
+                if p.instrument_type == "EQUITY" and p.symbol.upper() == target_symbol
+            ),
+            None,
+        )
+        if target_position is None:
+            print(f"   Focus ticker: {target_symbol} (not held; analyzing standalone)")
+            focus_positions = [_make_placeholder_position(target_symbol)]
+        else:
+            print(f"   Focus ticker: {target_symbol}")
+            focus_positions = [target_position]
+    else:
+        focus_positions = [p for p in positions if p.instrument_type == "EQUITY"]
+
+    symbols = ["SPY"] + [p.symbol for p in focus_positions]
     symbols = list(dict.fromkeys(symbols))  # deduplicate, preserve order
 
     ohlcv_cache: Dict[str, Dict[str, List[float]]] = {}
@@ -326,9 +370,7 @@ def run_autopilot(config: Optional[AutopilotConfig] = None) -> AutopilotResult:
     print("\n📈 Scoring positions...")
     scored: List[Tuple[Position, IndicatorSet]] = []
 
-    for pos in positions:
-        if pos.instrument_type != "EQUITY":
-            continue
+    for pos in focus_positions:
         data = ohlcv_cache.get(pos.symbol)
         if not data or len(data["close"]) < 200:
             scored.append((pos, IndicatorSet(symbol=pos.symbol)))
@@ -485,6 +527,7 @@ def run_autopilot(config: Optional[AutopilotConfig] = None) -> AutopilotResult:
         regime=regime,
         sleeve_weights=weights,
         scale_factor=scale,
+        focus_symbol=target_symbol,
         scored_positions=scored,
         trade_intents=trade_intents,
         executed_orders=executed_orders,
@@ -512,6 +555,8 @@ def main():
     print(f"\n  Mode:           {config.mode}")
     print(f"  Risk/Trade:     {config.risk_per_trade:.1%}")
     print(f"  Max Position:   {config.max_position_pct:.0%}")
+    if config.target_symbol:
+        print(f"  Focus:          {config.target_symbol}")
     if LOADED_ENV_SOURCES:
         print(f"  Env:           {format_env_sources(LOADED_ENV_SOURCES)}")
 
@@ -535,6 +580,8 @@ def main():
         },
         "sleeve_weights": result.sleeve_weights,
         "scale_factor": result.scale_factor,
+        "analysis_scope": "SINGLE_SYMBOL" if result.focus_symbol else "PORTFOLIO",
+        "focus_symbol": result.focus_symbol,
         "positions_scored": len(result.scored_positions),
         "trades_proposed": len(result.trade_intents),
         "trades_executed": len(result.executed_orders),
