@@ -44,6 +44,10 @@ python -m scripts
 # "Run the DVRR autopilot on my portfolio"
 ```
 
+If the live Public.com or Polygon credentials are unavailable, `python -m scripts`
+automatically falls back to the contest demo analysis so it still returns a structured
+result.
+
 ### 4. Optional demos
 
 ```bash

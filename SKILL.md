@@ -10,11 +10,11 @@ description: >
   on their Public.com brokerage account.
 env:
   PUBLIC_API_SECRET:
-    description: "Your Public.com API secret key (Settings → API Keys)"
-    required: true
+    description: "Your Public.com API secret key for live mode; if absent, the skill falls back to contest demo analysis"
+    required: false
   PUBLIC_ACCOUNT_ID:
-    description: "Your Public.com brokerage account ID"
-    required: true
+    description: "Your Public.com brokerage account ID for live mode; if absent, the skill falls back to contest demo analysis"
+    required: false
   DVRR_MODE:
     description: "Execution mode: ANALYZE (read-only), SUGGEST (show trades), or EXECUTE (place orders)"
     required: false
@@ -28,8 +28,8 @@ env:
     required: false
     default: "0.10"
   POLYGON_API_KEY:
-    description: "Polygon.io API key for historical OHLCV data (free tier works)"
-    required: true
+    description: "Polygon.io API key for live historical OHLCV data; if absent, the skill falls back to contest demo analysis"
+    required: false
 ---
 
 # DVRR Autopilot — Regime-Aware Autonomous Rebalancer
@@ -64,6 +64,8 @@ portfolio. Derived from a battle-tested autonomous trading agent running the DVR
 ```
 Analyze my Public.com portfolio — what's the current market regime and how are my positions scoring?
 ```
+
+If live Public or Polygon credentials are unavailable, `python -m scripts` automatically falls back to the contest demo analysis so the skill still returns a structured result.
 
 ### Get Rebalance Suggestions
 ```
