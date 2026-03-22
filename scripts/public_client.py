@@ -131,6 +131,7 @@ class PublicClient:
         """Fetch account summary (equity, buying power, cash)."""
         data = self._get("/trading/account")
         accounts = data.get("accounts", [])
+
         acct = None
         for a in accounts:
             if a.get("accountId") == self.account_id:
@@ -138,24 +139,49 @@ class PublicClient:
                 break
         if not acct and accounts:
             acct = accounts[0]
+            self.account_id = acct.get("accountId", self.account_id)
+            logger.debug("Falling back to the first account returned by Public.com")
 
-        # Get balances
-        balances = self._get(f"/trading/accounts/{self.account_id}/balances")
-        equity = float(balances.get("equity", 0))
-        buying_power = float(balances.get("buyingPower", 0))
-        cash = float(balances.get("cash", 0))
+        actual_account_id = acct.get("accountId", self.account_id) if acct else self.account_id
+        try:
+            balances = self._get(f"/trading/accounts/{actual_account_id}/balances")
+            equity = float(balances.get("equity", 0))
+            buying_power = float(balances.get("buyingPower", 0))
+            cash = float(balances.get("cash", 0))
+        except Exception as e:
+            # Fallback to account-level data if balances endpoint fails
+            logger.warning(f"Could not fetch balances: {e}")
+            equity = float(acct.get("equity", 0)) if acct else 0
+            buying_power = float(acct.get("buyingPower", 0)) if acct else 0
+            cash = float(acct.get("cash", 0)) if acct else 0
 
         return AccountInfo(
             account_id=self.account_id,
             equity=equity,
             buying_power=buying_power,
             cash=cash,
-            raw=balances,
+            raw=acct or {},
         )
 
     def get_positions(self) -> List[Position]:
         """Fetch all open positions."""
-        data = self._get(f"/trading/accounts/{self.account_id}/positions")
+        try:
+            data = self._get(f"/trading/accounts/{self.account_id}/positions")
+        except Exception as e:
+            # Try getting positions from the account endpoint instead
+            logger.warning(f"Could not fetch positions from dedicated endpoint: {e}")
+            account_data = self._get("/trading/account")
+            # Look for positions in the account data
+            accounts = account_data.get("accounts", [])
+            positions_data = []
+            for acct in accounts:
+                if acct.get("accountId") == self.account_id:
+                    positions_data = acct.get("positions", [])
+                    break
+            if not positions_data and accounts:
+                positions_data = accounts[0].get("positions", [])
+            data = {"positions": positions_data}
+        
         positions = []
         for p in data.get("positions", []):
             quantity = float(p.get("quantity", 0))

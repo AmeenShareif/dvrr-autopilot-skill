@@ -162,3 +162,9 @@ Run directly:
 ```bash
 python -m scripts
 ```
+
+Offline demos:
+```bash
+python demo.py
+python demo_with_real_data.py
+```

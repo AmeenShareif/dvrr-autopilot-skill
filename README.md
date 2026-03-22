@@ -44,6 +44,13 @@ python -m scripts
 # "Run the DVRR autopilot on my portfolio"
 ```
 
+### 4. Optional demos
+
+```bash
+python demo.py
+python demo_with_real_data.py
+```
+
 ## 🤖 Usage with AI Agents
 
 ### Claude / Claude Code
@@ -111,7 +118,10 @@ Execute the DVRR rebalancer. Show me the regime analysis and trade suggestions.
 dvrr-autopilot/
 ├── SKILL.md                 # Agent skill manifest (read this first)
 ├── README.md                # This file
+├── .env.example             # Safe template for local secrets
 ├── requirements.txt         # Python dependencies
+├── demo.py                  # Offline demo with synthetic data
+├── demo_with_real_data.py   # Richer offline demo with synthetic portfolio data
 └── scripts/
     ├── __init__.py
     ├── __main__.py          # CLI entry point

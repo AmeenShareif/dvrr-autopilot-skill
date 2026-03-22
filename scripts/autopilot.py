@@ -21,6 +21,21 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # If python-dotenv is not installed, try manual loading
+    env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+    if os.path.exists(env_path):
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+
 try:
     import httpx
 except ImportError:
@@ -38,6 +53,19 @@ from .sizing import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Console helpers
+# ---------------------------------------------------------------------------
+
+
+def _configure_stdout() -> None:
+    """Use UTF-8 stdout when the terminal supports it."""
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 
 # ============================================================================
@@ -189,6 +217,7 @@ def run_autopilot(config: Optional[AutopilotConfig] = None) -> AutopilotResult:
     5. Generate rebalance trades
     6. Optionally execute
     """
+    _configure_stdout()
     cfg = config or AutopilotConfig.from_env()
     errors: List[str] = []
 
@@ -422,6 +451,7 @@ def run_autopilot(config: Optional[AutopilotConfig] = None) -> AutopilotResult:
 
 def main():
     """Run the autopilot from the command line."""
+    _configure_stdout()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 
     print("╔══════════════════════════════════════════════╗")
