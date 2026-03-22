@@ -40,8 +40,8 @@ env:
 
 A production-grade trading skill that brings institutional-quality regime detection,
 multi-factor technical scoring, and intelligent position sizing to any Public.com
-portfolio. Derived from a battle-tested autonomous trading agent running the DVRR
-(Diversified Volatility-Responsive Rotation) strategy.
+portfolio. Built around the DVRR (Diversified Volatility-Responsive Rotation)
+strategy.
 
 ## What This Skill Does
 

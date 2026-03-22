@@ -2,7 +2,8 @@
 Technical Indicators — Pure Python, zero external dependencies.
 
 All functions expect price series as lists with oldest-first ordering.
-Extracted and refined from a production autonomous trading agent.
+Part of the DVRR (Diversified Volatility-Responsive Rotation) public skill
+implementation.
 """
 
 import math

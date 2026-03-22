@@ -2,7 +2,7 @@
 
 > **A production-grade Agent Skill that turns any AI agent into an autonomous portfolio manager for Public.com.**
 
-Built from a battle-tested trading agent running the **DVRR (Diversified Volatility-Responsive Rotation)** strategy. This skill chains 5+ Public API capabilities into a regime-aware trading pipeline — from market analysis to order execution.
+Built around the **DVRR (Diversified Volatility-Responsive Rotation)** strategy for Public.com. This skill chains 5+ Public API capabilities into a regime-aware trading pipeline — from market analysis to order execution.
 
 ---
 

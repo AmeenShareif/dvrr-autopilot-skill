@@ -4,8 +4,8 @@ Market Regime Classifier — Trend, Volatility, and Sleeve Weight Allocation.
 Classifies the current market environment and determines how capital should
 be allocated across TREND, BREAKOUT, and REVERSION strategy sleeves.
 
-Extracted from a production DVRR (Diversified Volatility-Responsive Rotation)
-autonomous trading agent.
+Part of the DVRR (Diversified Volatility-Responsive Rotation) public skill
+implementation.
 """
 
 import math
