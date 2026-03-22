@@ -22,20 +22,9 @@ from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 
-# Load environment variables from .env file if it exists
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    # If python-dotenv is not installed, try manual loading
-    env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
-    if os.path.exists(env_path):
-        with open(env_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    os.environ[key.strip()] = value.strip()
+from .env_loader import format_env_sources, load_runtime_env
+
+LOADED_ENV_SOURCES = load_runtime_env()
 
 try:
     import httpx
@@ -523,6 +512,8 @@ def main():
     print(f"\n  Mode:           {config.mode}")
     print(f"  Risk/Trade:     {config.risk_per_trade:.1%}")
     print(f"  Max Position:   {config.max_position_pct:.0%}")
+    if LOADED_ENV_SOURCES:
+        print(f"  Env:           {format_env_sources(LOADED_ENV_SOURCES)}")
 
     result = run_autopilot(config)
 

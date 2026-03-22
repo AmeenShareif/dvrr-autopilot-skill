@@ -67,6 +67,11 @@ Analyze my Public.com portfolio — what's the current market regime and how are
 
 If live Public or Polygon credentials are unavailable, `python -m scripts` automatically falls back to the contest demo analysis so the skill still returns a structured result.
 
+Environment loading precedence:
+- `DVRR_ENV_FILE` if set
+- `scripts/.env` if present
+- repo-root `.env`
+
 ### Get Rebalance Suggestions
 ```
 Run the DVRR autopilot on my portfolio in SUGGEST mode. Show me what trades it recommends and why.

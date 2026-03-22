@@ -34,6 +34,11 @@ export POLYGON_API_KEY="your-polygon-key"
 export DVRR_MODE="SUGGEST"          # ANALYZE | SUGGEST | EXECUTE
 ```
 
+Env-file precedence:
+- `DVRR_ENV_FILE` if set
+- `scripts/.env` if present
+- repo-root `.env`
+
 ### 3. Run
 
 ```bash

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+from .env_loader import format_env_sources, load_runtime_env
+
 _LIVE_ENV_VARS = ("PUBLIC_API_SECRET", "PUBLIC_ACCOUNT_ID", "POLYGON_API_KEY")
 
 
@@ -13,6 +15,10 @@ def _missing_live_env_vars() -> list[str]:
 
 def main() -> object:
     """Run live analysis when possible, otherwise fall back to the contest demo."""
+    loaded_env = load_runtime_env()
+    if loaded_env:
+        print(f"Env source: {format_env_sources(loaded_env)}")
+
     missing = _missing_live_env_vars()
     if missing:
         print(
