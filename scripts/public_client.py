@@ -301,19 +301,29 @@ class PublicClient:
         if equity_raw in (None, "") and nested_portfolio:
             equity_raw = nested_portfolio.get("equity")
 
-        buying_power_raw = account_payload.get("buyingPower")
-        if buying_power_raw in (None, "") and "buyingPower" in payload:
-            buying_power_raw = payload.get("buyingPower")
-        if buying_power_raw in (None, "") and nested_portfolio:
-            buying_power_raw = nested_portfolio.get("buyingPower")
+        buying_power_raw = (
+            account_payload.get("buyingPower")
+            or account_payload.get("cashOnlyBuyingPower")
+            or account_payload.get("buying_power")
+            or payload.get("buyingPower")
+            or payload.get("cashOnlyBuyingPower")
+            or payload.get("buying_power")
+            or nested_portfolio.get("buyingPower")
+            or nested_portfolio.get("cashOnlyBuyingPower")
+            or nested_portfolio.get("buying_power")
+        )
 
         cash_raw = (
             account_payload.get("cash")
             or account_payload.get("cashBalance")
             or account_payload.get("availableCash")
+            or account_payload.get("cashOnlyBuyingPower")
+            or account_payload.get("buying_power")
             or payload.get("cash")
             or payload.get("cashBalance")
             or payload.get("availableCash")
+            or payload.get("cashOnlyBuyingPower")
+            or payload.get("buying_power")
         )
 
         equity = 0.0

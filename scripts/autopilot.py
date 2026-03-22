@@ -18,6 +18,7 @@ import sys
 import json
 import time
 import logging
+from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 
@@ -53,6 +54,7 @@ from .sizing import (
 )
 
 logger = logging.getLogger(__name__)
+_POLYGON_REQUEST_TIMESTAMPS = deque()
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +74,27 @@ def _configure_logging() -> None:
     """Keep noisy HTTP client logs out of normal output."""
     for name in ("httpx", "httpcore"):
         logging.getLogger(name).setLevel(logging.WARNING)
+
+
+def _wait_for_polygon_slot() -> None:
+    """Throttle Polygon calls to avoid free-tier 429s."""
+    max_calls = max(1, int(os.environ.get("POLYGON_MAX_REQUESTS_PER_MINUTE", "5")))
+    window_seconds = 60.0
+    now = time.monotonic()
+
+    while _POLYGON_REQUEST_TIMESTAMPS and now - _POLYGON_REQUEST_TIMESTAMPS[0] >= window_seconds:
+        _POLYGON_REQUEST_TIMESTAMPS.popleft()
+
+    if len(_POLYGON_REQUEST_TIMESTAMPS) >= max_calls:
+        sleep_for = window_seconds - (now - _POLYGON_REQUEST_TIMESTAMPS[0]) + 0.1
+        if sleep_for > 0:
+            print(f"   Waiting {sleep_for:.1f}s for Polygon rate limit...", flush=True)
+            time.sleep(sleep_for)
+
+    now = time.monotonic()
+    while _POLYGON_REQUEST_TIMESTAMPS and now - _POLYGON_REQUEST_TIMESTAMPS[0] >= window_seconds:
+        _POLYGON_REQUEST_TIMESTAMPS.popleft()
+    _POLYGON_REQUEST_TIMESTAMPS.append(time.monotonic())
 
 
 # ============================================================================
@@ -156,23 +179,43 @@ def fetch_ohlcv(
     }
 
     try:
-        with httpx.Client(timeout=15) as http:
-            resp = http.get(url, params=params)
-            resp.raise_for_status()
-            data = resp.json()
+        for attempt in range(3):
+            _wait_for_polygon_slot()
+            with httpx.Client(timeout=15) as http:
+                resp = http.get(url, params=params)
+                if resp.status_code == 429:
+                    retry_after = resp.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            delay = max(1.0, float(retry_after))
+                        except ValueError:
+                            delay = 5.0 * (attempt + 1)
+                    else:
+                        delay = 5.0 * (attempt + 1)
+                    logger.warning(
+                        "Polygon rate limit for %s; retrying in %.1fs",
+                        symbol,
+                        delay,
+                    )
+                    time.sleep(delay)
+                    continue
+                resp.raise_for_status()
+                data = resp.json()
 
-        results = data.get("results", [])
-        if not results:
-            logger.warning(f"No OHLCV data for {symbol}")
-            return None
+            results = data.get("results", [])
+            if not results:
+                logger.warning(f"No OHLCV data for {symbol}")
+                return None
 
-        return {
-            "open": [r["o"] for r in results],
-            "high": [r["h"] for r in results],
-            "low": [r["l"] for r in results],
-            "close": [r["c"] for r in results],
-            "volume": [r["v"] for r in results],
-        }
+            return {
+                "open": [r["o"] for r in results],
+                "high": [r["h"] for r in results],
+                "low": [r["l"] for r in results],
+                "close": [r["c"] for r in results],
+                "volume": [r["v"] for r in results],
+            }
+        logger.warning(f"Polygon fetch failed for {symbol}: rate limit exhausted")
+        return None
     except httpx.HTTPStatusError as e:
         status = e.response.status_code if e.response is not None else "unknown"
         logger.error(f"Polygon fetch failed for {symbol}: HTTP {status}")
