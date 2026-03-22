@@ -77,7 +77,13 @@ If live Public or Polygon credentials are unavailable, `python -m scripts` autom
 Environment loading precedence:
 - `DVRR_ENV_FILE` if set
 - `scripts/.env` if present
+- OpenClaw secure files used by the official Public Agent Skill
 - repo-root `.env`
+
+Credential aliases:
+- `PUBLIC_API_SECRET` or `PUBLIC_COM_SECRET`
+- `PUBLIC_ACCOUNT_ID` or `PUBLIC_COM_ACCOUNT_ID`
+- the skill normalizes both names automatically
 
 Single-ticker mode:
 - Set `DVRR_TARGET_SYMBOL=NVDA` or run `python -m scripts --symbol NVDA`

@@ -75,12 +75,24 @@ class PublicClient:
         secret_key: Optional[str] = None,
         account_id: Optional[str] = None,
     ):
-        self.secret_key = secret_key or os.environ.get("PUBLIC_API_SECRET", "")
-        self.account_id = account_id or os.environ.get("PUBLIC_ACCOUNT_ID", "")
+        self.secret_key = secret_key or self._resolve_env(
+            "PUBLIC_API_SECRET",
+            "PUBLIC_COM_SECRET",
+        )
+        self.account_id = account_id or self._resolve_env(
+            "PUBLIC_ACCOUNT_ID",
+            "PUBLIC_COM_ACCOUNT_ID",
+        )
         if not self.secret_key:
-            raise ValueError("PUBLIC_API_SECRET is required (env var or constructor arg)")
+            raise ValueError(
+                "PUBLIC_API_SECRET or PUBLIC_COM_SECRET is required "
+                "(env var or constructor arg)"
+            )
         if not self.account_id:
-            raise ValueError("PUBLIC_ACCOUNT_ID is required (env var or constructor arg)")
+            raise ValueError(
+                "PUBLIC_ACCOUNT_ID or PUBLIC_COM_ACCOUNT_ID is required "
+                "(env var or constructor arg)"
+            )
         self._access_token: Optional[str] = None
         self._token_expires: float = 0
         self._http = httpx.Client(timeout=30)
@@ -112,6 +124,15 @@ class PublicClient:
             "Authorization": f"Bearer {self._ensure_token()}",
             "Content-Type": "application/json",
         }
+
+    @staticmethod
+    def _resolve_env(*names: str) -> str:
+        """Resolve the first populated environment variable from a list of aliases."""
+        for name in names:
+            value = os.environ.get(name, "")
+            if value:
+                return value
+        return ""
 
     def _get(self, path: str, params: Optional[Dict] = None) -> Any:
         url = f"{GATEWAY_URL}{path}"

@@ -71,7 +71,13 @@ export DVRR_TARGET_SYMBOL="NVDA"    # optional: analyze one ticker only
 Env-file precedence:
 - `DVRR_ENV_FILE` if set
 - `scripts/.env` if present
+- OpenClaw secure files from the official Public Agent Skill if present
 - repo-root `.env`
+
+Credential names:
+- `PUBLIC_API_SECRET` or `PUBLIC_COM_SECRET`
+- `PUBLIC_ACCOUNT_ID` or `PUBLIC_COM_ACCOUNT_ID`
+- the skill normalizes both sets automatically
 
 ### 3. Run
 
@@ -85,6 +91,10 @@ python -m scripts --symbol NVDA
 
 If live Public.com or Polygon credentials are unavailable, `python -m scripts`
 falls back to the contest demo analysis so it still returns a structured result.
+
+If you are already using the official Public.com OpenClaw skill, you can keep the
+same Public credentials there. DVRR Autopilot reads the same secure-file layout and
+accepts the same Public credential aliases.
 
 ### 4. Optional demos
 
