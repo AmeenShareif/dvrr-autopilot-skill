@@ -68,6 +68,12 @@ def _configure_stdout() -> None:
         pass
 
 
+def _configure_logging() -> None:
+    """Keep noisy HTTP client logs out of normal output."""
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -141,15 +147,17 @@ def fetch_ohlcv(
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
-    url = (
-        f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day"
-        f"/{start_date}/{end_date}?adjusted=true&sort=asc&limit=5000"
-        f"&apiKey={api_key}"
-    )
+    url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/{start_date}/{end_date}"
+    params = {
+        "adjusted": "true",
+        "sort": "asc",
+        "limit": 5000,
+        "apiKey": api_key,
+    }
 
     try:
         with httpx.Client(timeout=15) as http:
-            resp = http.get(url)
+            resp = http.get(url, params=params)
             resp.raise_for_status()
             data = resp.json()
 
@@ -165,8 +173,15 @@ def fetch_ohlcv(
             "close": [r["c"] for r in results],
             "volume": [r["v"] for r in results],
         }
+    except httpx.HTTPStatusError as e:
+        status = e.response.status_code if e.response is not None else "unknown"
+        logger.error(f"Polygon fetch failed for {symbol}: HTTP {status}")
+        return None
+    except httpx.RequestError as e:
+        logger.error(f"Polygon fetch failed for {symbol}: {e.__class__.__name__}")
+        return None
     except Exception as e:
-        logger.error(f"Polygon fetch failed for {symbol}: {e}")
+        logger.error(f"Polygon fetch failed for {symbol}: {e.__class__.__name__}")
         return None
 
 
@@ -218,6 +233,7 @@ def run_autopilot(config: Optional[AutopilotConfig] = None) -> AutopilotResult:
     6. Optionally execute
     """
     _configure_stdout()
+    _configure_logging()
     cfg = config or AutopilotConfig.from_env()
     errors: List[str] = []
 
@@ -226,7 +242,7 @@ def run_autopilot(config: Optional[AutopilotConfig] = None) -> AutopilotResult:
     try:
         client = PublicClient()
         account = client.get_account()
-        positions = client.get_positions()
+        positions = account.positions or client.get_positions()
         account.positions = positions
     except Exception as e:
         print(f"❌ Failed to connect: {e}")
@@ -452,7 +468,8 @@ def run_autopilot(config: Optional[AutopilotConfig] = None) -> AutopilotResult:
 def main():
     """Run the autopilot from the command line."""
     _configure_stdout()
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s", force=True)
+    _configure_logging()
 
     print("╔══════════════════════════════════════════════╗")
     print("║    DVRR AUTOPILOT — Regime-Aware Rebalancer  ║")

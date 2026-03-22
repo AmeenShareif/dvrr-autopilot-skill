@@ -84,6 +84,8 @@ class PublicClient:
         self._access_token: Optional[str] = None
         self._token_expires: float = 0
         self._http = httpx.Client(timeout=30)
+        self._last_portfolio_payload: Optional[Dict[str, Any]] = None
+        self._last_account_info: Optional[AccountInfo] = None
 
     # ------------------------------------------------------------------
     # Authentication
@@ -123,85 +125,259 @@ class PublicClient:
         resp.raise_for_status()
         return resp.json()
 
-    # ------------------------------------------------------------------
-    # Account & Positions
-    # ------------------------------------------------------------------
+    @staticmethod
+    def _coerce_float(value: Any) -> float:
+        """Best-effort numeric conversion for Public payloads."""
+        if value is None:
+            return 0.0
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value.replace("$", "").replace(",", ""))
+            except ValueError:
+                return 0.0
+        if isinstance(value, dict):
+            for key in (
+                "value",
+                "amount",
+                "cashOnlyBuyingPower",
+                "buyingPower",
+                "marketValue",
+                "currentValue",
+                "equity",
+                "cash",
+            ):
+                if key in value:
+                    coerced = PublicClient._coerce_float(value.get(key))
+                    if coerced or value.get(key) in (0, 0.0, "0", "0.0"):
+                        return coerced
+            for candidate in value.values():
+                coerced = PublicClient._coerce_float(candidate)
+                if coerced or candidate in (0, 0.0, "0", "0.0"):
+                    return coerced
+        return 0.0
 
-    def get_account(self) -> AccountInfo:
-        """Fetch account summary (equity, buying power, cash)."""
-        data = self._get("/trading/account")
-        accounts = data.get("accounts", [])
+    def _fetch_portfolio_payload(self) -> Dict[str, Any]:
+        """
+        Fetch the most complete Public portfolio snapshot available.
 
-        acct = None
-        for a in accounts:
-            if a.get("accountId") == self.account_id:
-                acct = a
-                break
-        if not acct and accounts:
-            acct = accounts[0]
-            self.account_id = acct.get("accountId", self.account_id)
-            logger.debug("Falling back to the first account returned by Public.com")
+        Prefer portfolio v2 because it usually includes positions and summary
+        fields together. Fall back to the account overview if needed.
+        """
+        if self._last_portfolio_payload is not None:
+            return self._last_portfolio_payload
 
-        actual_account_id = acct.get("accountId", self.account_id) if acct else self.account_id
-        try:
-            balances = self._get(f"/trading/accounts/{actual_account_id}/balances")
-            equity = float(balances.get("equity", 0))
-            buying_power = float(balances.get("buyingPower", 0))
-            cash = float(balances.get("cash", 0))
-        except Exception as e:
-            # Fallback to account-level data if balances endpoint fails
-            logger.warning(f"Could not fetch balances: {e}")
-            equity = float(acct.get("equity", 0)) if acct else 0
-            buying_power = float(acct.get("buyingPower", 0)) if acct else 0
-            cash = float(acct.get("cash", 0)) if acct else 0
+        for path in (f"/trading/{self.account_id}/portfolio/v2", "/trading/account"):
+            try:
+                payload = self._get(path)
+                if isinstance(payload, dict):
+                    self._last_portfolio_payload = payload
+                    return payload
+            except httpx.HTTPStatusError as e:
+                if e.response is not None and e.response.status_code == 404:
+                    logger.debug("Public portfolio endpoint unavailable: %s", path)
+                    continue
+                raise
+            except Exception as e:
+                logger.debug("Public portfolio fetch failed for %s: %s", path, e.__class__.__name__)
+                continue
+
+        self._last_portfolio_payload = {}
+        return {}
+
+    def _select_account_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Pick the best account-shaped object from a portfolio payload."""
+        if not isinstance(payload, dict):
+            return {}
+
+        accounts = payload.get("accounts")
+        if isinstance(accounts, list) and accounts:
+            for candidate in accounts:
+                if not isinstance(candidate, dict):
+                    continue
+                if candidate.get("accountId") == self.account_id:
+                    self.account_id = candidate.get("accountId", self.account_id)
+                    return candidate
+            first = next((candidate for candidate in accounts if isinstance(candidate, dict)), {})
+            if first:
+                self.account_id = first.get("accountId", self.account_id)
+                return first
+
+        return payload
+
+    def _extract_position_payloads(
+        self,
+        payload: Dict[str, Any],
+        account_payload: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        """Pull the first non-empty position list from known Public payload shapes."""
+        sources = [account_payload, payload]
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            for key in ("positions", "holdings", "portfolioPositions"):
+                raw_positions = source.get(key)
+                if isinstance(raw_positions, list) and raw_positions:
+                    return [p for p in raw_positions if isinstance(p, dict)]
+            nested = source.get("portfolio")
+            if isinstance(nested, dict):
+                for key in ("positions", "holdings"):
+                    raw_positions = nested.get(key)
+                    if isinstance(raw_positions, list) and raw_positions:
+                        return [p for p in raw_positions if isinstance(p, dict)]
+        return []
+
+    def _build_position(self, payload: Dict[str, Any]) -> Optional[Position]:
+        """Convert a raw Public position payload into a normalized Position."""
+        if not isinstance(payload, dict):
+            return None
+
+        instrument = payload.get("instrument")
+        if not isinstance(instrument, dict):
+            instrument = {}
+
+        symbol = (
+            instrument.get("symbol")
+            or payload.get("symbol")
+            or payload.get("ticker")
+            or ""
+        )
+        if not symbol:
+            return None
+
+        quantity = self._coerce_float(payload.get("quantity") or payload.get("qty") or payload.get("shares"))
+        market_value = self._coerce_float(
+            payload.get("currentValue")
+            or payload.get("marketValue")
+            or payload.get("value")
+        )
+        if market_value <= 0:
+            last_price = self._coerce_float(
+                payload.get("lastPrice")
+                or payload.get("currentPrice")
+                or payload.get("price")
+            )
+            if quantity > 0 and last_price > 0:
+                market_value = quantity * last_price
+
+        cost_basis = self._coerce_float(
+            payload.get("costBasis")
+            or payload.get("avgCost")
+            or payload.get("averageCost")
+            or payload.get("cost_basis")
+        )
+        pnl = market_value - cost_basis
+        pnl_pct = (pnl / cost_basis * 100) if cost_basis else 0
+        instrument_type = (
+            payload.get("instrumentType")
+            or payload.get("instrument_type")
+            or instrument.get("type")
+            or "EQUITY"
+        )
+
+        return Position(
+            symbol=str(symbol),
+            quantity=quantity,
+            market_value=market_value,
+            cost_basis=cost_basis,
+            unrealized_pnl=round(pnl, 2),
+            unrealized_pnl_pct=round(pnl_pct, 2),
+            side="LONG" if quantity >= 0 else "SHORT",
+            instrument_type=str(instrument_type),
+            raw=payload,
+        )
+
+    def _normalize_portfolio(self, payload: Dict[str, Any]) -> AccountInfo:
+        """Normalize Public portfolio/account payloads into AccountInfo."""
+        account_payload = self._select_account_payload(payload)
+        nested_portfolio = account_payload.get("portfolio")
+        if not isinstance(nested_portfolio, dict):
+            nested_portfolio = {}
+
+        equity_raw = account_payload.get("equity")
+        if equity_raw in (None, "") and "equity" in payload:
+            equity_raw = payload.get("equity")
+        if equity_raw in (None, "") and nested_portfolio:
+            equity_raw = nested_portfolio.get("equity")
+
+        buying_power_raw = account_payload.get("buyingPower")
+        if buying_power_raw in (None, "") and "buyingPower" in payload:
+            buying_power_raw = payload.get("buyingPower")
+        if buying_power_raw in (None, "") and nested_portfolio:
+            buying_power_raw = nested_portfolio.get("buyingPower")
+
+        cash_raw = (
+            account_payload.get("cash")
+            or account_payload.get("cashBalance")
+            or account_payload.get("availableCash")
+            or payload.get("cash")
+            or payload.get("cashBalance")
+            or payload.get("availableCash")
+        )
+
+        equity = 0.0
+        if isinstance(equity_raw, list):
+            for item in equity_raw:
+                if isinstance(item, dict):
+                    equity += self._coerce_float(item.get("value") or item.get("amount"))
+                else:
+                    equity += self._coerce_float(item)
+        else:
+            equity = self._coerce_float(equity_raw)
+
+        buying_power = 0.0
+        if isinstance(buying_power_raw, dict):
+            buying_power = self._coerce_float(
+                buying_power_raw.get("cashOnlyBuyingPower")
+                or buying_power_raw.get("buyingPower")
+                or buying_power_raw.get("value")
+                or buying_power_raw.get("amount")
+            )
+        else:
+            buying_power = self._coerce_float(buying_power_raw)
+
+        cash = self._coerce_float(cash_raw)
+        if cash <= 0 and buying_power > 0:
+            cash = buying_power
+
+        raw_positions = self._extract_position_payloads(payload, account_payload)
+        positions: List[Position] = []
+        for raw_position in raw_positions:
+            position = self._build_position(raw_position)
+            if position is not None:
+                positions.append(position)
+
+        if equity <= 0 and positions:
+            equity = sum(pos.market_value for pos in positions) + cash
+        if buying_power <= 0 and cash > 0:
+            buying_power = cash
 
         return AccountInfo(
             account_id=self.account_id,
             equity=equity,
             buying_power=buying_power,
             cash=cash,
-            raw=acct or {},
+            positions=positions,
+            raw=account_payload or payload,
         )
+
+    # ------------------------------------------------------------------
+    # Account & Positions
+    # ------------------------------------------------------------------
+
+    def get_account(self) -> AccountInfo:
+        """Fetch account summary (equity, buying power, cash)."""
+        payload = self._fetch_portfolio_payload()
+        account = self._normalize_portfolio(payload)
+        self._last_account_info = account
+        return account
 
     def get_positions(self) -> List[Position]:
         """Fetch all open positions."""
-        try:
-            data = self._get(f"/trading/accounts/{self.account_id}/positions")
-        except Exception as e:
-            # Try getting positions from the account endpoint instead
-            logger.warning(f"Could not fetch positions from dedicated endpoint: {e}")
-            account_data = self._get("/trading/account")
-            # Look for positions in the account data
-            accounts = account_data.get("accounts", [])
-            positions_data = []
-            for acct in accounts:
-                if acct.get("accountId") == self.account_id:
-                    positions_data = acct.get("positions", [])
-                    break
-            if not positions_data and accounts:
-                positions_data = accounts[0].get("positions", [])
-            data = {"positions": positions_data}
-        
-        positions = []
-        for p in data.get("positions", []):
-            quantity = float(p.get("quantity", 0))
-            market_value = float(p.get("marketValue", 0))
-            cost_basis = float(p.get("costBasis", 0))
-            pnl = market_value - cost_basis
-            pnl_pct = (pnl / cost_basis * 100) if cost_basis else 0
-
-            positions.append(Position(
-                symbol=p.get("symbol", ""),
-                quantity=quantity,
-                market_value=market_value,
-                cost_basis=cost_basis,
-                unrealized_pnl=round(pnl, 2),
-                unrealized_pnl_pct=round(pnl_pct, 2),
-                side="LONG" if quantity > 0 else "SHORT",
-                instrument_type=p.get("instrumentType", "EQUITY"),
-                raw=p,
-            ))
-        return positions
+        if self._last_account_info is not None:
+            return self._last_account_info.positions
+        return self.get_account().positions
 
     # ------------------------------------------------------------------
     # Market Data (quotes from Public)
