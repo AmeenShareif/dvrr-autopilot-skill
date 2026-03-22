@@ -1,14 +1,10 @@
 ---
 name: dvrr-autopilot
 description: >
-  Regime-aware autonomous portfolio rebalancer for Public.com. Classifies market
-  conditions (trending, choppy, volatile), scores every holding or one focused
-  ticker with 12+ technical indicators, computes optimal position sizes using
-  Kelly/ATR/hybrid math, and
-  executes rebalance trades through the Public API — all in one agent invocation.
-  Use this skill when the user asks to analyze their portfolio, detect the current
-  market regime, get smart rebalance suggestions, or run an autonomous trading cycle
-  on their Public.com brokerage account.
+  Public.com portfolio copilot for live account analysis, market-regime detection,
+  single-ticker deep dives, and safe rebalance suggestions in one run. Use this
+  skill when the user wants an account-specific answer about what to trim, hold,
+  add, or watch next.
 env:
   PUBLIC_API_SECRET:
     description: "Your Public.com API secret key for live mode; if absent, the skill falls back to contest demo analysis"
@@ -36,23 +32,21 @@ env:
     required: false
 ---
 
-# DVRR Autopilot — Regime-Aware Autonomous Rebalancer
+# DVRR Autopilot — Public.com Portfolio Copilot
 
-A production-grade trading skill that brings institutional-quality regime detection,
-multi-factor technical scoring, and intelligent position sizing to any Public.com
-portfolio. Built around the DVRR (Diversified Volatility-Responsive Rotation)
-strategy.
+A production-grade trading skill that turns a Public.com account into a live,
+regime-aware decision engine. It combines market classification, multi-factor
+technical scoring, and risk-aware sizing so an AI agent can answer the question:
+“What should I do with my portfolio right now?”
 
 ## What This Skill Does
 
-1. **Authenticates** with Public.com and loads your portfolio (positions, balances, buying power)
-2. **Fetches historical OHLCV** data for SPY (market benchmark) and either the full portfolio or one focused ticker via Polygon.io
-3. **Classifies the market regime** — Trending (strong up/down), Choppy, or Volatile — using MA alignment, slope analysis, and volatility percentile ranking
-4. **Computes sleeve weights** — Dynamically allocates between TREND, BREAKOUT, and REVERSION strategies based on the detected regime
-5. **Scores every position** with 12+ technical indicators: SMA(50/200), EMA(20), RSI(14), MACD, Ichimoku Cloud, Bollinger Band Squeeze, ATR(14), momentum (3m/6m with recency skip), volume ratio
-6. **Sizes trades optimally** using a hybrid engine: ATR-based volatility sizing → Kelly criterion overlay → confidence scaling → loss-streak dampening → regime-based exposure reduction
-7. **Generates rebalance orders** — BUY underweight winners, SELL overweight losers, with exact share quantities and dollar amounts
-8. **Executes via Public API** — In EXECUTE mode, places real orders through Public.com (market or limit)
+1. **Loads the live portfolio** from Public.com, including balances, positions, cash, and buying power
+2. **Classifies the market regime** from SPY so the agent knows whether to lean trend, breakout, or reversion
+3. **Scores holdings or one focused ticker** with 12+ technical indicators
+4. **Sizes trades intelligently** with ATR, Kelly, confidence scaling, and regime overlays
+5. **Generates clear rebalance ideas** with exact share counts and dollar amounts
+6. **Executes only when asked** in `EXECUTE` mode, with confirmation and guardrails
 
 ## Modes
 
@@ -68,6 +62,15 @@ strategy.
 ```
 Analyze my Public.com portfolio — what's the current market regime and how are my positions scoring?
 ```
+
+If the user wants the fastest proof that the skill works, use the single-ticker path:
+
+```bash
+python -m scripts --symbol NVDA
+```
+
+That mode fetches `SPY` plus only the requested ticker, which is ideal for large
+accounts or short live demos.
 
 If live Public or Polygon credentials are unavailable, `python -m scripts` automatically falls back to the contest demo analysis so the skill still returns a structured result.
 

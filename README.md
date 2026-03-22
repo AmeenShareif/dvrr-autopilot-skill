@@ -1,23 +1,56 @@
-# DVRR Autopilot — Regime-Aware Autonomous Rebalancer
+# DVRR Autopilot — Public.com Portfolio Copilot
 
-> **A production-grade Agent Skill that turns any AI agent into an autonomous portfolio manager for Public.com.**
+> Turn a Public.com account into a regime-aware decision engine in one command.
 
-Built around the **DVRR (Diversified Volatility-Responsive Rotation)** strategy for Public.com. This skill chains 5+ Public API capabilities into a regime-aware trading pipeline — from market analysis to order execution.
+DVRR Autopilot is built for one job: give an AI agent a real portfolio, a current market regime, and a clear answer about what to do next.
+
+It combines live Public.com account data, Polygon market data, technical scoring, and risk-aware sizing so users can get a portfolio-specific answer instead of a generic market explanation.
 
 ---
 
-## 🎯 What It Does
+## Why Use This Instead of Google?
 
-| Step | Description | Public API Used |
-|------|-------------|-----------------|
-| 1. **Load Portfolio** | Fetches account balance, positions, P&L | Account, Positions |
-| 2. **Classify Regime** | Detects trending/choppy/volatile market using SPY; can focus on one ticker | (Polygon.io for OHLCV) |
-| 3. **Score Holdings** | Computes 12+ technical indicators per selected position | Quotes |
-| 4. **Size Trades** | Hybrid Kelly/ATR/confidence position sizing | — |
-| 5. **Generate Orders** | BUY underweight winners, SELL weak positions | Preflight |
-| 6. **Execute** | Places real orders through Public.com | Orders |
+Google can explain RSI, moving averages, or market regimes.
 
-## ⚡ Quick Start
+It cannot see:
+- your live Public.com holdings
+- your cash and buying power
+- your current position sizes
+- your preferred risk limits
+- whether one specific ticker should be trimmed, held, or added to
+
+DVRR Autopilot answers the question Google cannot:
+
+> “Given my actual account and the current market regime, what should I do now?”
+
+---
+
+## What You Get In One Run
+
+| Capability | What it means for the user |
+|------------|----------------------------|
+| Load portfolio | Pulls account balance, positions, cash, and buying power |
+| Detect regime | Classifies the market as trending, choppy, or volatile |
+| Score holdings | Computes 12+ technical indicators on each holding or one focused ticker |
+| Size trades | Uses ATR, Kelly, confidence, and regime overlays to size suggestions |
+| Generate orders | Produces exact buy/sell quantities and dollar amounts |
+| Execute safely | Keeps `SUGGEST` as the default so nothing trades by accident |
+
+---
+
+## Best First Demo
+
+If you want the fastest, cleanest proof that the skill works, run it on one ticker:
+
+```bash
+python -m scripts --symbol NVDA
+```
+
+That path fetches `SPY` plus only the requested symbol, which makes the demo fast and avoids scanning every holding in a large account.
+
+---
+
+## Quick Start
 
 ### 1. Install
 
@@ -40,26 +73,18 @@ Env-file precedence:
 - `scripts/.env` if present
 - repo-root `.env`
 
-If `DVRR_TARGET_SYMBOL` is set, the skill fetches Polygon data for `SPY` plus that
-single ticker instead of walking the entire portfolio. This is the fastest way to
-analyze one name or avoid rate limits on large accounts.
-
 ### 3. Run
 
 ```bash
-# From this directory
+# Full portfolio analysis
 python -m scripts
 
 # Focus on one ticker only
 python -m scripts --symbol NVDA
-
-# Or ask your AI agent:
-# "Run the DVRR autopilot on my portfolio"
 ```
 
-If the live Public.com or Polygon credentials are unavailable, `python -m scripts`
-automatically falls back to the contest demo analysis so it still returns a structured
-result.
+If live Public.com or Polygon credentials are unavailable, `python -m scripts`
+falls back to the contest demo analysis so it still returns a structured result.
 
 ### 4. Optional demos
 
@@ -68,163 +93,102 @@ python demo.py
 python demo_with_real_data.py
 ```
 
-## 🤖 Usage with AI Agents
+---
 
-### Claude / Claude Code
-Upload this skill folder, or point Claude to `SKILL.md`:
+## What It Looks Like
+
+The output is designed to be readable by humans and downstream agents:
+
+- account summary
+- market regime
+- sleeve allocation
+- per-symbol technical snapshot
+- trade intents with reasons
+- structured JSON for automation
+
+That makes it useful both as a portfolio copilot and as a machine-readable skill.
+
+---
+
+## Why It Is Useful
+
+- It gives a portfolio-specific answer, not a market article.
+- It works safely in `SUGGEST` mode by default.
+- It supports single-ticker focus for large accounts.
+- It produces structured output that another agent can consume.
+- It is built around live account context, not generic education.
+
+---
+
+## Technical Edge
+
+| Area | Strength |
+|------|----------|
+| Market regime | SPY-based trend and volatility classification |
+| Indicators | 12+ pure-Python technical indicators |
+| Position sizing | Hybrid ATR / Kelly / confidence sizing |
+| Scale control | `DVRR_TARGET_SYMBOL` for one-symbol analysis |
+| Safety | Read-only default, explicit execute gate |
+| Integration | Works as a local skill, not a hosted service |
+
+---
+
+## Usage with AI Agents
+
+Tell your agent something like:
+
+```text
+Analyze my Public.com portfolio using the DVRR Autopilot skill.
+Tell me the current market regime, which positions are weak, and whether I should trim or hold them.
 ```
-Analyze my Public.com portfolio using the DVRR autopilot skill.
-What regime is the market in? What trades should I make?
-```
-If the user asks about one ticker, set `DVRR_TARGET_SYMBOL` or run
-`python -m scripts --symbol NVDA` so the skill only fetches SPY plus that symbol.
 
-### Perplexity Computer
-Upload as a skill ZIP:
-```
-Run a full DVRR autopilot cycle in SUGGEST mode on my Public.com account.
+For a single name:
+
+```text
+Analyze NVDA only and tell me if it looks like a buy, hold, or sell candidate.
 ```
 
-### OpenClaw / Any Agent
-Point the agent to read `SKILL.md` for instructions, then:
-```
-Execute the DVRR rebalancer. Show me the regime analysis and trade suggestions.
-```
+---
 
-## 🔒 Safety
-
-- **Default mode is SUGGEST** — read-only analysis + trade recommendations, no execution
-- **EXECUTE requires typing "CONFIRM"** — human-in-the-loop gate
-- **Position limits enforced** — max 10% per position, 30% per sector
-- **Risk capped** — 2% portfolio risk per trade (configurable)
-- **Circuit breaker** — extreme volatility → 70% cash reserve
-- **Loss dampening** — halves sizes after consecutive losses
-- **No hardcoded secrets** — all keys via env vars
-
-## 📊 What Gets Analyzed
-
-### Market Regime (via SPY)
-| Regime | Description | Capital Deployed |
-|--------|-------------|-----------------|
-| Strong Uptrend | All MAs aligned bullish, positive slope | 100% |
-| Uptrend | Majority bullish signals | 100% |
-| Choppy | Mixed signals, no clear direction | 100% (reversion-heavy) |
-| High Volatility | Vol > 75th percentile | 70% |
-| Extreme Volatility | Vol > 95th percentile | 30% |
-
-### Technical Indicators (per position)
-- **SMA(50), SMA(200)** — Golden/death cross, trend filter
-- **EMA(20)** — Short-term momentum
-- **RSI(14)** — Overbought/oversold
-- **MACD (12/26/9)** — Momentum confirmation
-- **Ichimoku Cloud** — Trend strength + support/resistance levels
-- **ATR(14)** — Volatility for stop placement
-- **Bollinger Band Squeeze** — Breakout detection (BB inside Keltner)
-- **Momentum (3m, 6m)** — Medium-term trend with recency skip
-- **Volume Ratio** — Current vs 20-day average
-- **Realized Volatility** — Annualized 20-day
-
-### Position Sizing Engine
-- **ATR-based**: `Shares = (Portfolio × Risk%) / (ATR × 2)`
-- **Kelly Criterion**: Optimal f* with ¼ fractional Kelly
-- **Confidence Scaling**: 0.4–1.5× based on signal strength
-- **Loss Streak**: Halve size after 2+ consecutive losses
-- **Regime Overlay**: -50% in HIGH vol, -70% in EXTREME
-
-## 📁 File Structure
+## File Structure
 
 ```
 dvrr-autopilot/
-├── SKILL.md                 # Agent skill manifest (read this first)
-├── README.md                # This file
-├── .env.example             # Safe template for local secrets
-├── requirements.txt         # Python dependencies
-├── demo.py                  # Offline demo with synthetic data
-├── demo_with_real_data.py   # Richer offline demo with synthetic portfolio data
+├── SKILL.md               # Agent skill manifest
+├── README.md              # Public-facing overview
+├── .env.example           # Safe template for local secrets
+├── requirements.txt       # Python dependencies
+├── demo.py                # Offline demo with synthetic data
+├── demo_with_real_data.py # Richer offline demo with synthetic portfolio data
 └── scripts/
     ├── __init__.py
-    ├── __main__.py          # CLI entry point
-    ├── autopilot.py         # Main orchestrator
-    ├── public_client.py     # Public.com API wrapper
-    ├── indicators.py        # 12+ technical indicators (pure math)
-    ├── regime.py            # Market regime classifier
-    └── sizing.py            # Position sizing engine
+    ├── __main__.py        # CLI entry point
+    ├── autopilot.py       # Main orchestrator
+    ├── public_client.py   # Public.com API wrapper
+    ├── indicators.py     # Technical indicators
+    ├── regime.py         # Market regime classifier
+    └── sizing.py         # Position sizing engine
 ```
 
-## 🧪 Example Output
+---
 
-```
-╔══════════════════════════════════════════════╗
-║    DVRR AUTOPILOT — Regime-Aware Rebalancer  ║
-║    Powered by Public.com API + Polygon.io    ║
-╚══════════════════════════════════════════════╝
+## Safety
 
-🔐 Connecting to Public.com...
-   Account: ABC123
-   Equity:  $25,420.00
-   Cash:    $3,200.00
-   Positions: 12
+- `SUGGEST` is the default mode
+- `EXECUTE` requires explicit confirmation
+- all secrets come from env vars
+- no hardcoded API keys
+- no trade execution is required to get value from the skill
 
-📊 Fetching historical data from Polygon.io...
-   ✓ SPY: 252 bars
-   ✓ AAPL: 252 bars
-   ✓ NVDA: 252 bars
-   ...
+---
 
-══════════════════════════════════════
-       MARKET REGIME ANALYSIS
-══════════════════════════════════════
-  Trend:       UPTREND (confidence 65%)
-  Volatility:  MEDIUM (percentile 45%)
-  Tradability: 0.87
+## Disclaimer
 
-  Sleeve Allocation:
-    TREND:     55%
-    BREAKOUT:  30%
-    REVERSION: 15%
-    Cash:      0%
-══════════════════════════════════════
-  Trade Gate:  ✅ OPEN
+This skill is for educational and informational purposes only. `SUGGEST` and `ANALYZE`
+are read-only. If you choose `EXECUTE`, trades must comply with Public's Terms of Service
+and should only be placed after careful review.
 
-📈 Scoring positions...
-── NVDA Technical Snapshot ──
-  Price:        $875.50
-  SMA(50):      $842.30
-  SMA(200):     $715.60
-  RSI(14):      62.3
-  MACD Hist:    +3.2100
-  ATR(14):      $18.45
-  Ichimoku:     ABOVE cloud (GREEN)
-  Mom (3m):     +18.52%
-  Trend Score:  +0.1850
-
-⚡ Generating rebalance trades...
-   📋 3 trade(s) proposed:
-   🟢 BUY 5.2300 NVDA — $4,582.65
-      Reason: Strong trend (+0.1850), underweight (3.2% vs 5.5%)
-   🔴 SELL 10.0000 INTC — $312.50
-      Reason: Weak trend score (-0.0320 < 0.02)
-   🟢 BUY 12.5000 AAPL — $2,187.50
-      Reason: Strong trend (+0.0920), underweight (2.1% vs 4.2%)
-```
-
-## 🏗️ Architecture
-
-This skill is **self-contained** — no database, no external services beyond Public.com and Polygon.io. All technical analysis is computed with pure Python math (no numpy/pandas required). The entire indicator library, regime classifier, and sizing engine are zero-dependency.
-
-The design is intentionally modular so agents can call individual components:
-- Just want regime? Call `regime.classify_regime()`
-- Just want indicators? Call `indicators.calculate_trend_score()`
-- Just want sizing? Call `sizing.calculate_position_size()`
-
-## 📜 License
-
-MIT — Use freely, trade responsibly.
-
-## ⚠️ Disclaimer
-
-This skill is for educational and informational purposes only. **No trading activity is required** to use this skill — the default SUGGEST mode and ANALYZE mode are fully read-only and never place orders. If you choose to use EXECUTE mode, trades must comply with Public's Terms of Service and must be executed in good faith.
-
-Nothing in this project constitutes investment advice or a recommendation to buy or sell securities. Trading involves risk of loss. Always review trade suggestions before execution. The authors are not responsible for any financial losses. Participants should only trade if consistent with their own investment objectives and financial circumstances.
+Nothing in this project constitutes investment advice or a recommendation to buy or sell
+securities. Trading involves risk of loss.
 
 Brokerage services are provided by Open to the Public Investing, Inc., Member FINRA / SIPC.
