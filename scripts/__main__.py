@@ -25,7 +25,17 @@ def main() -> object:
 
     from .autopilot import main as live_main
 
-    return live_main()
+    try:
+        return live_main()
+    except Exception as exc:
+        print(
+            f"WARNING: Live portfolio analysis unavailable ({exc.__class__.__name__}) - "
+            "running contest demo analysis instead.",
+            flush=True,
+        )
+        from demo_with_real_data import main as demo_main
+
+        return demo_main()
 
 
 if __name__ == "__main__":

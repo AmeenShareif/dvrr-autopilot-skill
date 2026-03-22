@@ -168,6 +168,7 @@ class PublicClient:
         if self._last_portfolio_payload is not None:
             return self._last_portfolio_payload
 
+        last_error: Optional[Exception] = None
         for path in (f"/trading/{self.account_id}/portfolio/v2", "/trading/account"):
             try:
                 payload = self._get(path)
@@ -178,13 +179,26 @@ class PublicClient:
                 if e.response is not None and e.response.status_code == 404:
                     logger.debug("Public portfolio endpoint unavailable: %s", path)
                     continue
-                raise
+                last_error = e
+                logger.debug(
+                    "Public portfolio fetch failed for %s: %s",
+                    path,
+                    e.__class__.__name__,
+                )
+                continue
             except Exception as e:
-                logger.debug("Public portfolio fetch failed for %s: %s", path, e.__class__.__name__)
+                last_error = e
+                logger.debug(
+                    "Public portfolio fetch failed for %s: %s",
+                    path,
+                    e.__class__.__name__,
+                )
                 continue
 
         self._last_portfolio_payload = {}
-        return {}
+        if last_error is not None:
+            raise ConnectionError("Public portfolio data unavailable") from last_error
+        raise ConnectionError("Public portfolio data unavailable")
 
     def _select_account_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Pick the best account-shaped object from a portfolio payload."""
