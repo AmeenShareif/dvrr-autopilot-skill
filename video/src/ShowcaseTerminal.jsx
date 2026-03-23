@@ -26,7 +26,7 @@ const colors = {
 export const SHOWCASE_WIDTH = 1920;
 export const SHOWCASE_HEIGHT = 1080;
 export const SHOWCASE_FPS = 60;
-export const SHOWCASE_SCENE_LENGTH = 320;
+export const SHOWCASE_SCENE_LENGTH = 500;
 export const SHOWCASE_TRANSITION_LENGTH = 36;
 export const SHOWCASE_TOTAL_FRAMES =
   SHOWCASE_SCENE_LENGTH * 5 - SHOWCASE_TRANSITION_LENGTH * 4;
@@ -52,15 +52,13 @@ function cursor(frame, fps, active) {
 
 function Shell({children, title, subtitle, frame, duration, accent = colors.green}) {
   const {fps} = useVideoConfig();
-  const fadeFrames = Math.round(fps * 0.5);
+  const fadeFrames = Math.max(8, Math.round(fps * 0.2));
   const liftFrames = Math.max(1, Math.round(fps * 0.3));
-  const scaleFrames = Math.max(1, Math.round(fps * 0.55));
   const opacity = interpolate(frame, [0, fadeFrames, duration - fadeFrames, duration], [0, 1, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
   const lift = interpolate(frame, [0, liftFrames], [18, 0], {extrapolateRight: 'clamp'});
-  const scale = spring({frame, fps, config: {damping: 200}, durationInFrames: scaleFrames});
 
   return (
     <AbsoluteFill style={{opacity, transform: `translateY(${lift}px)`}}>
@@ -73,7 +71,6 @@ function Shell({children, title, subtitle, frame, duration, accent = colors.gree
           border: `1px solid ${colors.stroke}`,
           boxShadow: '0 24px 80px rgba(0, 0, 0, 0.44)',
           overflow: 'hidden',
-          transform: `scale(${0.985 + scale * 0.015})`,
         }}
       >
         <div
