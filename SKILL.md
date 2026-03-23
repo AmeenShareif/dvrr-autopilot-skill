@@ -2,9 +2,10 @@
 name: dvrr-autopilot
 description: >
   Public.com portfolio copilot for live account analysis, market-regime detection,
-  single-ticker deep dives, and safe rebalance suggestions in one run. Use this
-  skill when the user wants an account-specific answer about what to trim, hold,
-  add, or watch next.
+  single-ticker deep dives, and safe rebalance suggestions in one run. The skill
+  is bootstrap-friendly, read-only by default for new users, and can be driven by
+  any AI agent that can run Python. Use it when the user wants an account-specific
+  answer about what to trim, hold, add, or watch next.
 env:
   PUBLIC_API_SECRET:
     description: "Your Public.com API secret key for live mode; if absent, the skill falls back to contest demo analysis"
@@ -15,7 +16,7 @@ env:
   DVRR_MODE:
     description: "Execution mode: ANALYZE (read-only), SUGGEST (show trades), or EXECUTE (place orders)"
     required: false
-    default: "SUGGEST"
+    default: "ANALYZE"
   DVRR_RISK_PER_TRADE:
     description: "Max risk per trade as decimal (default 0.02 = 2%)"
     required: false
@@ -39,6 +40,16 @@ regime-aware decision engine. It combines market classification, multi-factor
 technical scoring, and risk-aware sizing so an AI agent can answer the question:
 “What should I do with my portfolio right now?”
 
+New users should start with the bootstrapper:
+
+```bash
+python bootstrap.py --symbol NVDA
+```
+
+That installs dependencies, prepares a local `.env` if needed, and defaults to
+`ANALYZE`, which keeps the run read-only while still producing a portfolio
+analysis result.
+
 ## What This Skill Does
 
 1. **Loads the live portfolio** from Public.com, including balances, positions, cash, and buying power
@@ -53,7 +64,7 @@ technical scoring, and risk-aware sizing so an AI agent can answer the question:
 | Mode | Behavior |
 |------|----------|
 | `ANALYZE` | Read-only. Shows regime, scores, and risk metrics. No trade suggestions. |
-| `SUGGEST` | Default. Shows everything above + specific rebalance trades with sizing. |
+| `SUGGEST` | Shows everything above + specific rebalance trades with sizing. |
 | `EXECUTE` | Places the suggested orders through Public.com. **Real money.** Requires explicit user confirmation. |
 
 ## How to Use
@@ -62,6 +73,14 @@ technical scoring, and risk-aware sizing so an AI agent can answer the question:
 ```
 Analyze my Public.com portfolio — what's the current market regime and how are my positions scoring?
 ```
+
+### One-Command Setup
+```bash
+python bootstrap.py --symbol NVDA
+```
+Use this path for new users, CI, and any AI agent that needs a single runnable entrypoint.
+
+New users should start in `ANALYZE`; switch to `SUGGEST` when they want trade ideas, or `EXECUTE` only when they explicitly want orders placed.
 
 If the user wants the fastest proof that the skill works, use the single-ticker path:
 
@@ -79,6 +98,11 @@ Environment loading precedence:
 - `scripts/.env` if present
 - OpenClaw secure files used by the official Public Agent Skill
 - repo-root `.env`
+
+Bootstrap behavior:
+- creates `.env` from `.env.example` if needed
+- sets `DVRR_MODE=ANALYZE` unless you override it
+- writes `workspace.env` so the repo-root launcher can reuse the prepared environment
 
 Credential aliases:
 - `PUBLIC_API_SECRET` or `PUBLIC_COM_SECRET`
@@ -127,8 +151,8 @@ scripts/
 
 ## Safety & Guardrails
 
-- **No trading required** — ANALYZE and SUGGEST modes are read-only and never place orders. The skill provides full value (regime detection, scoring, sizing math) without any trading activity.
-- **Default mode is SUGGEST** — never places trades without explicit opt-in
+- **No trading required** — ANALYZE is read-only, and SUGGEST provides trade ideas without placing orders. The skill provides full value (regime detection, scoring, sizing math) without any trading activity.
+- **Default bootstrap mode is ANALYZE** — new users get a safe read-only run first
 - **EXECUTE mode requires user confirmation** before every order
 - **Position limits enforced** — max 10% per position, max 30% per sector
 - **Risk per trade capped** — default 2% of portfolio, configurable
@@ -180,10 +204,7 @@ scripts/
 ## Setup
 
 ```bash
-pip install httpx
-export PUBLIC_API_SECRET="your-secret-key"
-export PUBLIC_ACCOUNT_ID="your-account-id"
-export POLYGON_API_KEY="your-polygon-key"
+python bootstrap.py --prepare-only
 ```
 
 Run directly:

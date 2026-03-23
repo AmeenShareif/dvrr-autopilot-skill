@@ -1,5 +1,7 @@
 # DVRR Autopilot — Public.com Portfolio Copilot
 
+[![CI](https://github.com/AmeenShareif/dvrr-autopilot-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/AmeenShareif/dvrr-autopilot-skill/actions/workflows/ci.yml)
+
 > Turn a Public.com account into a regime-aware decision engine in one command.
 
 DVRR Autopilot is built for one job: give an AI agent a real portfolio, a current market regime, and a clear answer about what to do next.
@@ -34,7 +36,26 @@ DVRR Autopilot answers the question Google cannot:
 | Score holdings | Computes 12+ technical indicators on each holding or one focused ticker |
 | Size trades | Uses ATR, Kelly, confidence, and regime overlays to size suggestions |
 | Generate orders | Produces exact buy/sell quantities and dollar amounts |
-| Execute safely | Keeps `SUGGEST` as the default so nothing trades by accident |
+| Execute safely | Keeps trading behind an explicit mode gate so nothing trades by accident |
+
+---
+
+## One-Command Bootstrap
+
+The easiest way to use the skill is:
+
+```bash
+python bootstrap.py --symbol NVDA
+```
+
+That command:
+- installs dependencies
+- creates a local `.env` from `.env.example` if needed
+- defaults the launch to `ANALYZE` so no trades are placed
+- runs the skill with either your live portfolio or the contest demo fallback
+
+If you add Public.com and Polygon credentials to `.env`, the same command can
+pull your portfolio data and analyze it without executing trades.
 
 ---
 
@@ -43,7 +64,7 @@ DVRR Autopilot answers the question Google cannot:
 If you want the fastest, cleanest proof that the skill works, run it on one ticker:
 
 ```bash
-python run.py --symbol NVDA
+python bootstrap.py --symbol NVDA
 ```
 
 That path fetches `SPY` plus only the requested symbol, which makes the demo fast and avoids scanning every holding in a large account.
@@ -55,7 +76,7 @@ That path fetches `SPY` plus only the requested symbol, which makes the demo fas
 ### 1. Install
 
 ```bash
-pip install httpx
+python bootstrap.py --prepare-only
 ```
 
 ### 2. Run the demo immediately
@@ -63,7 +84,7 @@ pip install httpx
 No API keys are required to see the skill work.
 
 ```bash
-python run.py --symbol NVDA
+python bootstrap.py --symbol NVDA
 ```
 
 That will fall back to the contest demo analysis if live credentials are not present.
@@ -74,7 +95,7 @@ That will fall back to the contest demo analysis if live credentials are not pre
 export PUBLIC_API_SECRET="your-public-api-secret"
 export PUBLIC_ACCOUNT_ID="your-account-id"
 export POLYGON_API_KEY="your-polygon-key"
-export DVRR_MODE="SUGGEST"          # ANALYZE | SUGGEST | EXECUTE
+export DVRR_MODE="ANALYZE"          # ANALYZE | SUGGEST | EXECUTE
 export DVRR_TARGET_SYMBOL="NVDA"    # optional: analyze one ticker only
 ```
 
@@ -99,10 +120,15 @@ python run.py
 
 # Focus on one ticker only
 python run.py --symbol NVDA
+
+# Or use the bootstrapper, which installs deps and prepares the local env
+python bootstrap.py --symbol NVDA
 ```
 
 If live Public.com or Polygon credentials are unavailable, `python run.py`
 falls back to the contest demo analysis so it still returns a structured result.
+For read-only portfolio review, set `DVRR_MODE=ANALYZE` in `.env` or use the
+bootstrapper, which does that for new users.
 
 If you are already using the official Public.com OpenClaw skill, you can keep the
 same Public credentials there. DVRR Autopilot reads the same secure-file layout and
@@ -135,7 +161,7 @@ That makes it useful both as a portfolio copilot and as a machine-readable skill
 ## Why It Is Useful
 
 - It gives a portfolio-specific answer, not a market article.
-- It works safely in `SUGGEST` mode by default.
+- It works safely in `ANALYZE` mode by default through the bootstrapper.
 - It supports single-ticker focus for large accounts.
 - It produces structured output that another agent can consume.
 - It is built around live account context, not generic education.
@@ -170,12 +196,20 @@ For a single name:
 Analyze NVDA only and tell me if it looks like a buy, hold, or sell candidate.
 ```
 
+The repo is agent-friendly because it exposes a single Python bootstrapper.
+Any AI agent that can execute Python can use the same command path:
+
+```bash
+python bootstrap.py --symbol NVDA
+```
+
 ---
 
 ## File Structure
 
 ```
 dvrr-autopilot/
+├── bootstrap.py          # One-command setup and launch path
 ├── SKILL.md               # Agent skill manifest
 ├── README.md              # Public-facing overview
 ├── .env.example           # Safe template for local secrets
@@ -196,7 +230,7 @@ dvrr-autopilot/
 
 ## Safety
 
-- `SUGGEST` is the default mode
+- `ANALYZE` is the default mode for the public bootstrap path
 - `EXECUTE` requires explicit confirmation
 - all secrets come from env vars
 - no hardcoded API keys
@@ -206,9 +240,10 @@ dvrr-autopilot/
 
 ## Disclaimer
 
-This skill is for educational and informational purposes only. `SUGGEST` and `ANALYZE`
-are read-only. If you choose `EXECUTE`, trades must comply with Public's Terms of Service
-and should only be placed after careful review.
+This skill is for educational and informational purposes only. `ANALYZE` is read-only,
+and `SUGGEST` shows trade ideas without placing orders. If you choose `EXECUTE`,
+trades must comply with Public's Terms of Service and should only be placed after
+careful review.
 
 Nothing in this project constitutes investment advice or a recommendation to buy or sell
 securities. Trading involves risk of loss.
