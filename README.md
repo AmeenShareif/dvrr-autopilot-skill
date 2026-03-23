@@ -156,6 +156,10 @@ The output is designed to be readable by humans and downstream agents:
 
 That makes it useful both as a portfolio copilot and as a machine-readable skill.
 
+Demo asset:
+- [GIF preview](assets/dvrr-autopilot-demo.gif)
+- [MP4 preview](assets/dvrr-autopilot-demo.mp4)
+
 ---
 
 ## Why It Is Useful
