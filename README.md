@@ -183,17 +183,26 @@ That makes it useful both as a portfolio copilot and as a machine-readable skill
 
 ## Usage with AI Agents
 
-Tell your agent something like:
+Tell any AI agent this:
 
 ```text
-Analyze my Public.com portfolio using the DVRR Autopilot skill.
-Tell me the current market regime, which positions are weak, and whether I should trim or hold them.
+Use the DVRR Autopilot skill to analyze my Public.com portfolio.
+Start in ANALYZE mode, pick one holding if needed, and tell me whether it looks like a buy, hold, or sell candidate.
+Do not place trades.
 ```
 
-For a single name:
+For a single-name review:
 
 ```text
-Analyze NVDA only and tell me if it looks like a buy, hold, or sell candidate.
+Use the DVRR Autopilot skill to analyze only one stock from my Public.com portfolio.
+Pick a random holding, run a single-symbol analysis, and tell me if it looks like a buy, hold, or sell candidate.
+Do not place trades.
+```
+
+If the agent does not support skills, run the public bootstrapper directly:
+
+```text
+python bootstrap.py --symbol NVDA
 ```
 
 The repo is agent-friendly because it exposes a single Python bootstrapper.

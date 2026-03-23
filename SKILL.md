@@ -74,6 +74,13 @@ analysis result.
 Analyze my Public.com portfolio — what's the current market regime and how are my positions scoring?
 ```
 
+### Exact Prompt For Any AI Agent
+```text
+Use the DVRR Autopilot skill to analyze my Public.com portfolio.
+Start in ANALYZE mode, pick one holding if needed, and tell me whether it looks like a buy, hold, or sell candidate.
+Do not place trades.
+```
+
 ### One-Command Setup
 ```bash
 python bootstrap.py --symbol NVDA
@@ -81,6 +88,12 @@ python bootstrap.py --symbol NVDA
 Use this path for new users, CI, and any AI agent that needs a single runnable entrypoint.
 
 New users should start in `ANALYZE`; switch to `SUGGEST` when they want trade ideas, or `EXECUTE` only when they explicitly want orders placed.
+
+If the agent does not support skills, give it this exact fallback command:
+
+```text
+python bootstrap.py --symbol NVDA
+```
 
 If the user wants the fastest proof that the skill works, use the single-ticker path:
 
@@ -159,6 +172,14 @@ scripts/
 - **Extreme volatility circuit breaker** — reduces exposure to 30% in crisis regimes
 - **Loss streak dampening** — halves position sizes after consecutive losses
 - **All API keys via env vars** — never hardcoded, never logged
+
+## Prompting Rules For Users
+
+- If you want an AI agent to use the skill automatically, explicitly say `Use the DVRR Autopilot skill`.
+- For a portfolio review, ask for `ANALYZE` mode.
+- For trade ideas without execution, ask for `SUGGEST` mode.
+- For single-stock analysis, ask the agent to pick one holding or specify a ticker.
+- If the agent cannot load skills, use `python bootstrap.py --symbol NVDA` directly.
 
 ## Technical Indicators Computed
 
