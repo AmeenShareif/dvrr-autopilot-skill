@@ -144,7 +144,7 @@ def main():
     print("      export PUBLIC_API_SECRET='your-secret'")
     print("      export PUBLIC_ACCOUNT_ID='your-account'")
     print("      export POLYGON_API_KEY='your-polygon-key'")
-    print("   2. Run: python -m scripts")
+    print("   2. Run: python run.py")
     print("   3. Choose mode: ANALYZE | SUGGEST | EXECUTE")
 
 if __name__ == "__main__":

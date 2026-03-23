@@ -1,4 +1,4 @@
-"""Allow running as: python -m scripts"""
+"""Allow running from the repo-root launcher or as a package module."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def _missing_live_env_vars() -> list[str]:
 def _parse_args() -> argparse.Namespace:
     """Parse the small CLI surface exposed by the skill entrypoint."""
     parser = argparse.ArgumentParser(
-        prog="python -m scripts",
+        prog="python run.py",
         description="Run the DVRR Autopilot skill.",
     )
     parser.add_argument(
