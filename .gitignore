@@ -6,3 +6,6 @@ workspace.env
 *.egg-info/
 dist/
 build/
+video/node_modules/
+video/.cache/
+video/.remotion/

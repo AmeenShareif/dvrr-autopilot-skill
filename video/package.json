@@ -1,0 +1,17 @@
+{
+  "name": "dvrr-remotion-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "remotion render src/index.jsx DVRRShowcase ../assets/dvrr-autopilot-demo.mp4",
+    "studio": "remotion studio src/index.jsx"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@remotion/cli": "^4.0.438"
+  }
+}

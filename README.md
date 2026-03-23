@@ -155,6 +155,7 @@ The output is designed to be readable by humans and downstream agents:
 - structured JSON for automation
 
 That makes it useful both as a portfolio copilot and as a machine-readable skill.
+The GIF and MP4 previews are rendered from the Remotion source in `video/`.
 
 Demo asset:
 - [GIF preview](assets/dvrr-autopilot-demo.gif)
@@ -225,10 +226,12 @@ dvrr-autopilot/
 ├── bootstrap.py          # One-command setup and launch path
 ├── SKILL.md               # Agent skill manifest
 ├── README.md              # Public-facing overview
+├── assets/                # Demo GIF and MP4 previews
 ├── .env.example           # Safe template for local secrets
 ├── requirements.txt       # Python dependencies
 ├── demo.py                # Offline demo with synthetic data
 ├── demo_with_real_data.py # Richer offline demo with synthetic portfolio data
+├── video/                 # Remotion source for the showcase media
 └── scripts/
     ├── __init__.py
     ├── __main__.py        # CLI entry point
