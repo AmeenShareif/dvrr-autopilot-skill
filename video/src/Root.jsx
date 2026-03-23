@@ -1,6 +1,12 @@
 import React from 'react';
 import {Composition} from 'remotion';
-import {DVRRShowcaseTerminal, SHOWCASE_TOTAL_FRAMES} from './ShowcaseTerminal.jsx';
+import {
+  DVRRShowcaseTerminal,
+  SHOWCASE_FPS,
+  SHOWCASE_HEIGHT,
+  SHOWCASE_TOTAL_FRAMES,
+  SHOWCASE_WIDTH,
+} from './ShowcaseTerminal.jsx';
 
 const defaultProps = {
   symbol: 'GOOG',
@@ -30,9 +36,9 @@ export const RemotionRoot = () => {
       id="DVRRShowcase"
       component={DVRRShowcaseTerminal}
       durationInFrames={SHOWCASE_TOTAL_FRAMES}
-      fps={30}
-      width={1280}
-      height={720}
+      fps={SHOWCASE_FPS}
+      width={SHOWCASE_WIDTH}
+      height={SHOWCASE_HEIGHT}
       defaultProps={defaultProps}
     />
   );

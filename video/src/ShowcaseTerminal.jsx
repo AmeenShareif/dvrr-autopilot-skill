@@ -23,34 +23,44 @@ const colors = {
   amber: '#ffce6b',
 };
 
-export const SHOWCASE_SCENE_LENGTH = 150;
-export const SHOWCASE_TRANSITION_LENGTH = 20;
+export const SHOWCASE_WIDTH = 1920;
+export const SHOWCASE_HEIGHT = 1080;
+export const SHOWCASE_FPS = 60;
+export const SHOWCASE_SCENE_LENGTH = 320;
+export const SHOWCASE_TRANSITION_LENGTH = 36;
 export const SHOWCASE_TOTAL_FRAMES =
   SHOWCASE_SCENE_LENGTH * 5 - SHOWCASE_TRANSITION_LENGTH * 4;
 
+const DESIGN_WIDTH = 1280;
+const DESIGN_HEIGHT = 720;
+const STAGE_SCALE = SHOWCASE_WIDTH / DESIGN_WIDTH;
 const SCENE_LENGTH = SHOWCASE_SCENE_LENGTH;
-const SCENE_FADE = 24;
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, value));
 }
 
-function typedText(text, frame, startFrame, charsPerFrame) {
+function typedText(text, frame, startFrame, charsPerSecond, fps) {
+  const charsPerFrame = charsPerSecond / fps;
   const visibleChars = Math.max(0, Math.floor((frame - startFrame) * charsPerFrame));
   return text.slice(0, Math.min(text.length, visibleChars));
 }
 
-function cursor(frame, active) {
-  return active && Math.floor(frame / 6) % 2 === 0 ? '▍' : '';
+function cursor(frame, fps, active) {
+  return active && Math.floor(frame / Math.max(1, Math.round(fps / 2))) % 2 === 0 ? '▍' : '';
 }
 
 function Shell({children, title, subtitle, frame, duration, accent = colors.green}) {
-  const opacity = interpolate(frame, [0, SCENE_FADE, duration - SCENE_FADE, duration], [0, 1, 1, 0], {
+  const {fps} = useVideoConfig();
+  const fadeFrames = Math.round(fps * 0.5);
+  const liftFrames = Math.max(1, Math.round(fps * 0.3));
+  const scaleFrames = Math.max(1, Math.round(fps * 0.55));
+  const opacity = interpolate(frame, [0, fadeFrames, duration - fadeFrames, duration], [0, 1, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-  const lift = interpolate(frame, [0, 18], [18, 0], {extrapolateRight: 'clamp'});
-  const scale = spring({frame, fps: 30, config: {damping: 200}, durationInFrames: 26});
+  const lift = interpolate(frame, [0, liftFrames], [18, 0], {extrapolateRight: 'clamp'});
+  const scale = spring({frame, fps, config: {damping: 200}, durationInFrames: scaleFrames});
 
   return (
     <AbsoluteFill style={{opacity, transform: `translateY(${lift}px)`}}>
@@ -134,30 +144,72 @@ function Dot({color}) {
   return <div style={{width: 12, height: 12, borderRadius: 999, background: color, boxShadow: `0 0 18px ${color}`}} />;
 }
 
-function CommandLine({frame, startFrame, text, prefix = '$', accent = colors.cyan, speed = 1.0}) {
-  const visible = typedText(text, frame, startFrame, speed);
+function CommandLine({frame, startFrame, text, prefix = '$', accent = colors.cyan, charsPerSecond = 22}) {
+  const {fps} = useVideoConfig();
+  const visible = typedText(text, frame, startFrame, charsPerSecond, fps);
   const done = visible.length >= text.length;
   return (
     <div style={{display: 'flex', gap: 10, marginBottom: 10, alignItems: 'baseline'}}>
       <span style={{color: accent, fontFamily: 'Consolas, monospace', fontSize: 19}}>{prefix}</span>
       <span style={{color: colors.text, fontFamily: 'Consolas, monospace', fontSize: 19, lineHeight: 1.5}}>
         {visible}
-        {!done ? cursor(frame, true) : ''}
+        {!done ? cursor(frame, fps, true) : ''}
       </span>
     </div>
   );
 }
 
-function OutputLine({frame, startFrame, text, accent = colors.muted, prefix = '>' , speed = 0.9}) {
-  const visible = typedText(text, frame, startFrame, speed);
+function OutputLine({frame, startFrame, text, accent = colors.muted, prefix = '>', charsPerSecond = 18}) {
+  const {fps} = useVideoConfig();
+  const visible = typedText(text, frame, startFrame, charsPerSecond, fps);
   const done = visible.length >= text.length;
   return (
     <div style={{display: 'flex', gap: 10, marginBottom: 8, alignItems: 'baseline'}}>
       <span style={{color: accent, fontFamily: 'Consolas, monospace', fontSize: 18, opacity: 0.9}}>{prefix}</span>
       <span style={{color: colors.text, fontFamily: 'Consolas, monospace', fontSize: 18, lineHeight: 1.5}}>
         {visible}
-        {!done ? cursor(frame, true) : ''}
+        {!done ? cursor(frame, fps, true) : ''}
       </span>
+    </div>
+  );
+}
+
+function DialogueLine({frame, startFrame, role, text, accent = colors.cyan, charsPerSecond = 16}) {
+  const {fps} = useVideoConfig();
+  const visible = typedText(text, frame, startFrame, charsPerSecond, fps);
+  const done = visible.length >= text.length;
+  const isAgent = role.toLowerCase() === 'agent';
+  return (
+    <div style={{display: 'grid', gridTemplateColumns: '94px 1fr', gap: 12, marginBottom: 14, alignItems: 'start'}}>
+      <div
+        style={{
+          paddingTop: 10,
+          color: accent,
+          fontFamily: 'Consolas, monospace',
+          fontSize: 17,
+          fontWeight: 700,
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
+        }}
+      >
+        {role}
+      </div>
+      <div
+        style={{
+          borderRadius: 18,
+          padding: '12px 14px',
+          background: isAgent ? 'rgba(95,240,177,0.10)' : 'rgba(255,255,255,0.05)',
+          border: `1px solid ${isAgent ? 'rgba(95,240,177,0.24)' : 'rgba(255,255,255,0.08)'}`,
+          color: colors.text,
+          fontFamily: 'Consolas, monospace',
+          fontSize: 17,
+          lineHeight: 1.45,
+          minHeight: 52,
+        }}
+      >
+        {visible}
+        {!done ? cursor(frame, fps, true) : ''}
+      </div>
     </div>
   );
 }
@@ -228,45 +280,49 @@ function Panel({title, children}) {
 function TerminalSceneOne({data}) {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
-  const intro = spring({frame, fps, config: {damping: 200}, durationInFrames: 32});
-  const cmdStart = 8;
+  const intro = spring({frame, fps, config: {damping: 200}, durationInFrames: Math.round(fps * 0.75)});
+  const cmdStart = 18;
   return (
     <AbsoluteFill style={{background: `radial-gradient(circle at 20% 20%, rgba(110,231,255,0.18), transparent 22%), radial-gradient(circle at 78% 18%, rgba(95,240,177,0.14), transparent 25%), linear-gradient(180deg, ${colors.bg0} 0%, ${colors.bg1} 100%)`}}>
       <Backdrop frame={frame} />
-      <Shell title="DVRR Autopilot" subtitle="Public.com portfolio copilot for any AI agent" frame={frame} duration={SCENE_LENGTH} accent={colors.green}>
+      <Shell title="DVRR Autopilot" subtitle="Run it yourself or hand it to an AI agent" frame={frame} duration={SCENE_LENGTH} accent={colors.green}>
         <div style={{display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 24, alignItems: 'stretch'}}>
           <div>
             <div style={{fontFamily: 'Segoe UI, system-ui, sans-serif', fontSize: 54, lineHeight: 1.02, fontWeight: 800, color: colors.text, maxWidth: 560, transform: `translateY(${(1 - intro) * 18}px)`}}>
-              One command. One holding. One answer.
+              One command. One AI agent. One answer.
             </div>
             <div style={{marginTop: 16, color: colors.muted, fontFamily: 'Segoe UI, system-ui, sans-serif', fontSize: 20, lineHeight: 1.45, maxWidth: 560}}>
-              The skill loads the live portfolio, classifies the market, and gives a buy / hold / sell call without placing trades.
-            </div>
-            <div style={{marginTop: 24, borderRadius: 22, background: 'rgba(6, 12, 20, 0.98)', border: `1px solid ${colors.stroke}`, padding: 20, boxShadow: '0 18px 40px rgba(0,0,0,0.28)'}}>
-              <CommandLine frame={frame} startFrame={cmdStart} text="python bootstrap.py --symbol GOOG" prefix="$" accent={colors.cyan} speed={1.2} />
-              <OutputLine frame={frame} startFrame={32} text="installing deps and preparing env" prefix=">" accent={colors.green} speed={1.0} />
-              <OutputLine frame={frame} startFrame={58} text="loading live Public.com portfolio" prefix=">" accent={colors.text} speed={1.0} />
-              <OutputLine frame={frame} startFrame={82} text="analyzing SPY + one holding" prefix=">" accent={colors.text} speed={1.0} />
-              <OutputLine frame={frame} startFrame={108} text="result: HOLD candidate" prefix=">" accent={colors.green} speed={1.05} />
-            </div>
-            <div style={{marginTop: 18, display: 'flex', flexWrap: 'wrap'}}>
-              <Pill active color={colors.green}>ANALYZE default</Pill>
-              <Pill>live portfolio</Pill>
-              <Pill>single-symbol focus</Pill>
-              <Pill>no trades required</Pill>
+              It works as a CLI workflow for humans and as a copy-paste prompt for any compatible agent.
             </div>
           </div>
-          <Panel title="Run summary">
-            <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14}}>
-              <SummaryCard label="Equity" value={`$${data.accountEquity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} accent={colors.green} />
-              <SummaryCard label="Positions" value={`${data.positionCount}`} accent={colors.cyan} />
-              <SummaryCard label="Mode" value="ANALYZE" accent={colors.green2} />
-              <SummaryCard label="Target" value={data.symbol} accent={colors.amber} />
-            </div>
-            <div style={{marginTop: 18, color: colors.muted, fontFamily: 'Segoe UI, system-ui, sans-serif', fontSize: 16, lineHeight: 1.5}}>
-              Built for any AI agent that can run Python.
-            </div>
-          </Panel>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18}}>
+            <Panel title="Run it yourself">
+              <div style={{marginBottom: 18, borderRadius: 22, background: 'rgba(6, 12, 20, 0.98)', border: `1px solid ${colors.stroke}`, padding: 20, boxShadow: '0 18px 40px rgba(0,0,0,0.28)'}}>
+                <CommandLine frame={frame} startFrame={cmdStart} text="python bootstrap.py --symbol GOOG" prefix="$" accent={colors.cyan} charsPerSecond={22} />
+                <OutputLine frame={frame} startFrame={112} text="bootstrap complete" prefix=">" accent={colors.green} charsPerSecond={24} />
+                <OutputLine frame={frame} startFrame={172} text="portfolio loaded" prefix=">" accent={colors.text} charsPerSecond={24} />
+                <OutputLine frame={frame} startFrame={228} text="one holding selected" prefix=">" accent={colors.text} charsPerSecond={24} />
+                <OutputLine frame={frame} startFrame={280} text="final call: HOLD" prefix=">" accent={colors.green} charsPerSecond={24} />
+              </div>
+              <div style={{display: 'flex', flexWrap: 'wrap'}}>
+                <Pill active color={colors.green}>ANALYZE default</Pill>
+                <Pill>live portfolio</Pill>
+                <Pill>no trades required</Pill>
+              </div>
+            </Panel>
+            <Panel title="Talk to an AI agent">
+              <div style={{marginBottom: 18, borderRadius: 22, background: 'rgba(6, 12, 20, 0.98)', border: `1px solid ${colors.stroke}`, padding: 20, boxShadow: '0 18px 40px rgba(0,0,0,0.28)'}}>
+                <DialogueLine frame={frame} startFrame={28} role="User" text="Use DVRR Autopilot on my Public portfolio." accent={colors.cyan} charsPerSecond={22} />
+                <DialogueLine frame={frame} startFrame={150} role="Agent" text="Bootstrapping the skill now." accent={colors.green} charsPerSecond={22} />
+                <DialogueLine frame={frame} startFrame={236} role="Agent" text="Portfolio loaded. Final call: HOLD." accent={colors.green2} charsPerSecond={22} />
+              </div>
+              <div style={{display: 'flex', flexWrap: 'wrap'}}>
+                <Pill active color={colors.cyan}>promptable</Pill>
+                <Pill>CLI friendly</Pill>
+                <Pill>agent friendly</Pill>
+              </div>
+            </Panel>
+          </div>
         </div>
       </Shell>
     </AbsoluteFill>
@@ -284,12 +340,11 @@ function TerminalSceneTwo({data}) {
         <div style={{display: 'grid', gridTemplateColumns: '1.02fr 0.98fr', gap: 24}}>
           <Panel title="Terminal session">
             <div style={{opacity: reveal}}>
-              <CommandLine frame={frame} startFrame={8} text="inspect live portfolio" prefix="$" accent={colors.cyan} speed={1.05} />
-              <OutputLine frame={frame} startFrame={32} text="account id: 5OR90034" prefix="account" accent={colors.green} speed={0.95} />
-              <OutputLine frame={frame} startFrame={54} text="equity: $2,151.71" prefix="equity" accent={colors.green} speed={0.95} />
-              <OutputLine frame={frame} startFrame={76} text="positions: 9 holdings" prefix="positions" accent={colors.text} speed={0.95} />
-              <OutputLine frame={frame} startFrame={98} text="random selection: GOOG" prefix="focus" accent={colors.cyan} speed={0.95} />
-              <OutputLine frame={frame} startFrame={120} text="analysis scope: SINGLE_SYMBOL" prefix="scope" accent={colors.green} speed={0.95} />
+              <CommandLine frame={frame} startFrame={16} text="inspect live portfolio" prefix="$" accent={colors.cyan} charsPerSecond={22} />
+              <OutputLine frame={frame} startFrame={88} text="account id: 5OR90034" prefix="account" accent={colors.green} charsPerSecond={24} />
+              <OutputLine frame={frame} startFrame={150} text="equity: $2,151.71" prefix="equity" accent={colors.green} charsPerSecond={24} />
+              <OutputLine frame={frame} startFrame={212} text="positions: 9 holdings" prefix="positions" accent={colors.text} charsPerSecond={24} />
+              <OutputLine frame={frame} startFrame={274} text="focus: GOOG" prefix="focus" accent={colors.cyan} charsPerSecond={24} />
             </div>
           </Panel>
           <div>
@@ -334,12 +389,11 @@ function TerminalSceneThree({data}) {
         <div style={{display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 24}}>
           <Panel title="Terminal session">
             <div style={{transform: `translateX(${(1 - prog) * -14}px)`}}>
-              <CommandLine frame={frame} startFrame={8} text="fetch SPY + GOOG bars" prefix="$" accent={colors.cyan} speed={1.05} />
-              <OutputLine frame={frame} startFrame={32} text="classify market regime" prefix=">" accent={colors.text} speed={0.92} />
-              <OutputLine frame={frame} startFrame={56} text={`trend: ${data.regimeTrend} (${Math.round(data.trendConfidence * 100)}%)`} prefix="trend" accent={colors.green} speed={0.92} />
-              <OutputLine frame={frame} startFrame={82} text={`volatility: ${data.regimeVolatility}`} prefix="vol" accent={colors.cyan} speed={0.92} />
-              <OutputLine frame={frame} startFrame={106} text="weights: 55 / 30 / 15" prefix="weights" accent={colors.amber} speed={0.92} />
-              <OutputLine frame={frame} startFrame={128} text="trade gate: OPEN" prefix="gate" accent={colors.green} speed={0.95} />
+              <CommandLine frame={frame} startFrame={16} text="fetch SPY + GOOG bars" prefix="$" accent={colors.cyan} charsPerSecond={22} />
+              <OutputLine frame={frame} startFrame={92} text="classify market regime" prefix=">" accent={colors.text} charsPerSecond={24} />
+              <OutputLine frame={frame} startFrame={154} text={`trend: ${data.regimeTrend} (${Math.round(data.trendConfidence * 100)}%)`} prefix="trend" accent={colors.green} charsPerSecond={24} />
+              <OutputLine frame={frame} startFrame={222} text={`volatility: ${data.regimeVolatility}`} prefix="vol" accent={colors.cyan} charsPerSecond={24} />
+              <OutputLine frame={frame} startFrame={286} text="gate: OPEN" prefix="gate" accent={colors.green} charsPerSecond={24} />
             </div>
           </Panel>
           <div>
@@ -383,11 +437,9 @@ function TerminalSceneFour({data}) {
       <Shell title={`Single-stock analysis: ${data.symbol}`} subtitle="The skill narrows to one ticker, computes indicators, then returns a call" frame={frame} duration={SCENE_LENGTH} accent={colors.green}>
         <div style={{display: 'grid', gridTemplateColumns: '0.93fr 1.07fr', gap: 24}}>
           <Panel title="Terminal session">
-            <CommandLine frame={frame} startFrame={8} text={`score ${data.symbol} with indicators`} prefix="$" accent={colors.cyan} speed={1.05} />
-            <OutputLine frame={frame} startFrame={32} text={`price ${data.price.toFixed(2)} | sma50 ${data.sma50.toFixed(2)} | sma200 ${data.sma200.toFixed(2)}`} prefix="price" accent={colors.text} speed={0.92} />
-            <OutputLine frame={frame} startFrame={58} text={`rsi ${data.rsi.toFixed(1)} | macd +${data.macdHist.toFixed(4)}`} prefix="rsi" accent={colors.amber} speed={0.92} />
-            <OutputLine frame={frame} startFrame={82} text={`3m ${data.momentum3m.toFixed(2)}% | 6m ${data.momentum6m.toFixed(2)}%`} prefix="momentum" accent={colors.cyan} speed={0.92} />
-            <OutputLine frame={frame} startFrame={108} text={`trend score +${data.trendScore.toFixed(4)}`} prefix="score" accent={colors.green} speed={0.95} />
+            <CommandLine frame={frame} startFrame={16} text={`score ${data.symbol} with indicators`} prefix="$" accent={colors.cyan} charsPerSecond={22} />
+            <OutputLine frame={frame} startFrame={148} text={`price ${data.price.toFixed(2)}`} prefix="price" accent={colors.text} charsPerSecond={24} />
+            <OutputLine frame={frame} startFrame={220} text={`rsi ${data.rsi.toFixed(1)} | macd +${data.macdHist.toFixed(4)}`} prefix="rsi" accent={colors.amber} charsPerSecond={24} />
           </Panel>
           <div>
             <Panel title="Trend footprint">
@@ -444,11 +496,10 @@ function TerminalSceneFive({data}) {
       <Shell title="Outcome" subtitle="The safest call on this holding is to stay patient" frame={frame} duration={SCENE_LENGTH} accent={colors.green}>
         <div style={{display: 'grid', gridTemplateColumns: '1.02fr 0.98fr', gap: 24, alignItems: 'stretch'}}>
           <Panel title="Final terminal session">
-            <CommandLine frame={frame} startFrame={8} text="final decision" prefix="$" accent={colors.cyan} speed={1.0} />
-            <OutputLine frame={frame} startFrame={34} text={`GOOG is a ${data.verdict} candidate`} prefix=">" accent={colors.green} speed={0.95} />
-            <OutputLine frame={frame} startFrame={58} text="no trades proposed" prefix=">" accent={colors.text} speed={0.95} />
-            <OutputLine frame={frame} startFrame={82} text="ANALYZE first, SUGGEST second" prefix=">" accent={colors.text} speed={0.95} />
-            <OutputLine frame={frame} startFrame={108} text="python bootstrap.py --symbol GOOG" prefix=">" accent={colors.green} speed={1.0} />
+            <CommandLine frame={frame} startFrame={16} text="final decision" prefix="$" accent={colors.cyan} charsPerSecond={22} />
+            <OutputLine frame={frame} startFrame={92} text={`GOOG is a ${data.verdict} candidate`} prefix=">" accent={colors.green} charsPerSecond={24} />
+            <OutputLine frame={frame} startFrame={180} text="no trades proposed" prefix=">" accent={colors.text} charsPerSecond={24} />
+            <OutputLine frame={frame} startFrame={240} text="ANALYZE first, SUGGEST second" prefix=">" accent={colors.text} charsPerSecond={24} />
           </Panel>
           <Panel title="Judge-friendly close">
             <div style={{transform: `translateY(${(1 - reveal) * 8}px)`}}>
@@ -495,7 +546,8 @@ function SummaryCard({label, value, accent = colors.text}) {
 }
 
 function Backdrop({frame}) {
-  const drift = interpolate(frame, [0, 500], [0, 48]);
+  const {durationInFrames} = useVideoConfig();
+  const drift = interpolate(frame, [0, durationInFrames], [0, 48]);
   const lines = [];
   for (let x = 0; x <= 1280; x += 96) {
     lines.push(<line key={`v-${x}`} x1={x} y1={0} x2={x} y2={720} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />);
@@ -517,41 +569,53 @@ export function DVRRShowcaseTerminal(props) {
         background: `linear-gradient(180deg, ${colors.bg0} 0%, ${colors.bg1} 100%)`,
         color: colors.text,
       }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: DESIGN_WIDTH,
+          height: DESIGN_HEIGHT,
+          transform: `scale(${STAGE_SCALE})`,
+          transformOrigin: 'top left',
+        }}
       >
         <IntroGlow />
-      <TransitionSeries>
-        <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
-          <TerminalSceneOne data={props} />
-        </TransitionSeries.Sequence>
-        <TransitionSeries.Transition
-          presentation={fade()}
-          timing={linearTiming({durationInFrames: SHOWCASE_TRANSITION_LENGTH})}
-        />
-        <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
-          <TerminalSceneTwo data={props} />
-        </TransitionSeries.Sequence>
-        <TransitionSeries.Transition
-          presentation={fade()}
-          timing={linearTiming({durationInFrames: SHOWCASE_TRANSITION_LENGTH})}
-        />
-        <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
-          <TerminalSceneThree data={props} />
-        </TransitionSeries.Sequence>
-        <TransitionSeries.Transition
-          presentation={fade()}
-          timing={linearTiming({durationInFrames: SHOWCASE_TRANSITION_LENGTH})}
-        />
-        <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
-          <TerminalSceneFour data={props} />
-        </TransitionSeries.Sequence>
-        <TransitionSeries.Transition
-          presentation={fade()}
-          timing={linearTiming({durationInFrames: SHOWCASE_TRANSITION_LENGTH})}
-        />
-        <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
-          <TerminalSceneFive data={props} />
-        </TransitionSeries.Sequence>
-      </TransitionSeries>
+        <TransitionSeries>
+          <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
+            <TerminalSceneOne data={props} />
+          </TransitionSeries.Sequence>
+          <TransitionSeries.Transition
+            presentation={fade()}
+            timing={linearTiming({durationInFrames: SHOWCASE_TRANSITION_LENGTH})}
+          />
+          <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
+            <TerminalSceneTwo data={props} />
+          </TransitionSeries.Sequence>
+          <TransitionSeries.Transition
+            presentation={fade()}
+            timing={linearTiming({durationInFrames: SHOWCASE_TRANSITION_LENGTH})}
+          />
+          <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
+            <TerminalSceneThree data={props} />
+          </TransitionSeries.Sequence>
+          <TransitionSeries.Transition
+            presentation={fade()}
+            timing={linearTiming({durationInFrames: SHOWCASE_TRANSITION_LENGTH})}
+          />
+          <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
+            <TerminalSceneFour data={props} />
+          </TransitionSeries.Sequence>
+          <TransitionSeries.Transition
+            presentation={fade()}
+            timing={linearTiming({durationInFrames: SHOWCASE_TRANSITION_LENGTH})}
+          />
+          <TransitionSeries.Sequence durationInFrames={SCENE_LENGTH}>
+            <TerminalSceneFive data={props} />
+          </TransitionSeries.Sequence>
+        </TransitionSeries>
+      </div>
     </AbsoluteFill>
   );
 }
