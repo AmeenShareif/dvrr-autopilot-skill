@@ -66,13 +66,13 @@ Analyze my Public.com portfolio — what's the current market regime and how are
 If the user wants the fastest proof that the skill works, use the single-ticker path:
 
 ```bash
-python -m scripts --symbol NVDA
+python run.py --symbol NVDA
 ```
 
 That mode fetches `SPY` plus only the requested ticker, which is ideal for large
 accounts or short live demos.
 
-If live Public or Polygon credentials are unavailable, `python -m scripts` automatically falls back to the contest demo analysis so the skill still returns a structured result.
+If live Public or Polygon credentials are unavailable, `python run.py` automatically falls back to the contest demo analysis so the skill still returns a structured result.
 
 Environment loading precedence:
 - `DVRR_ENV_FILE` if set
@@ -86,7 +86,7 @@ Credential aliases:
 - the skill normalizes both names automatically
 
 Single-ticker mode:
-- Set `DVRR_TARGET_SYMBOL=NVDA` or run `python -m scripts --symbol NVDA`
+- Set `DVRR_TARGET_SYMBOL=NVDA` or run `python run.py --symbol NVDA`
 - The skill will fetch `SPY` plus that ticker only, instead of walking the entire holdings list
 - This is the recommended mode when the user asks about one symbol or the account has many holdings
 
@@ -188,7 +188,7 @@ export POLYGON_API_KEY="your-polygon-key"
 
 Run directly:
 ```bash
-python -m scripts
+python run.py
 ```
 
 Offline demos:

@@ -43,7 +43,7 @@ DVRR Autopilot answers the question Google cannot:
 If you want the fastest, cleanest proof that the skill works, run it on one ticker:
 
 ```bash
-python -m scripts --symbol NVDA
+python run.py --symbol NVDA
 ```
 
 That path fetches `SPY` plus only the requested symbol, which makes the demo fast and avoids scanning every holding in a large account.
@@ -58,7 +58,17 @@ That path fetches `SPY` plus only the requested symbol, which makes the demo fas
 pip install httpx
 ```
 
-### 2. Configure
+### 2. Run the demo immediately
+
+No API keys are required to see the skill work.
+
+```bash
+python run.py --symbol NVDA
+```
+
+That will fall back to the contest demo analysis if live credentials are not present.
+
+### 3. Configure live mode
 
 ```bash
 export PUBLIC_API_SECRET="your-public-api-secret"
@@ -74,29 +84,31 @@ Env-file precedence:
 - OpenClaw secure files from the official Public Agent Skill if present
 - repo-root `.env`
 
+For local live mode, copy `.env.example` to `.env` and fill in your own values.
+
 Credential names:
 - `PUBLIC_API_SECRET` or `PUBLIC_COM_SECRET`
 - `PUBLIC_ACCOUNT_ID` or `PUBLIC_COM_ACCOUNT_ID`
 - the skill normalizes both sets automatically
 
-### 3. Run
+### 4. Run live or demo
 
 ```bash
 # Full portfolio analysis
-python -m scripts
+python run.py
 
 # Focus on one ticker only
-python -m scripts --symbol NVDA
+python run.py --symbol NVDA
 ```
 
-If live Public.com or Polygon credentials are unavailable, `python -m scripts`
+If live Public.com or Polygon credentials are unavailable, `python run.py`
 falls back to the contest demo analysis so it still returns a structured result.
 
 If you are already using the official Public.com OpenClaw skill, you can keep the
 same Public credentials there. DVRR Autopilot reads the same secure-file layout and
 accepts the same Public credential aliases.
 
-### 4. Optional demos
+### 5. Optional demos
 
 ```bash
 python demo.py
