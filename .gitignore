@@ -9,3 +9,4 @@ build/
 video/node_modules/
 video/.cache/
 video/.remotion/
+assets/scene1-frame*.png

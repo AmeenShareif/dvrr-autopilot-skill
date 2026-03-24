@@ -148,7 +148,7 @@ function CommandLine({frame, startFrame, text, prefix = '$', accent = colors.cya
   return (
     <div style={{display: 'flex', gap: 10, marginBottom: 10, alignItems: 'baseline'}}>
       <span style={{color: accent, fontFamily: 'Consolas, monospace', fontSize: 19}}>{prefix}</span>
-      <span style={{color: colors.text, fontFamily: 'Consolas, monospace', fontSize: 19, lineHeight: 1.5}}>
+      <span style={{color: colors.text, fontFamily: 'Consolas, monospace', fontSize: 19, lineHeight: 1.5, whiteSpace: 'nowrap'}}>
         {visible}
         {!done ? cursor(frame, fps, true) : ''}
       </span>
@@ -163,7 +163,7 @@ function OutputLine({frame, startFrame, text, accent = colors.muted, prefix = '>
   return (
     <div style={{display: 'flex', gap: 10, marginBottom: 8, alignItems: 'baseline'}}>
       <span style={{color: accent, fontFamily: 'Consolas, monospace', fontSize: 18, opacity: 0.9}}>{prefix}</span>
-      <span style={{color: colors.text, fontFamily: 'Consolas, monospace', fontSize: 18, lineHeight: 1.5}}>
+      <span style={{color: colors.text, fontFamily: 'Consolas, monospace', fontSize: 18, lineHeight: 1.5, whiteSpace: 'nowrap'}}>
         {visible}
         {!done ? cursor(frame, fps, true) : ''}
       </span>
@@ -180,10 +180,10 @@ function DialogueLine({frame, startFrame, role, text, accent = colors.cyan, char
     <div style={{display: 'grid', gridTemplateColumns: '94px 1fr', gap: 12, marginBottom: 14, alignItems: 'start'}}>
       <div
         style={{
-          paddingTop: 10,
+          paddingTop: 8,
           color: accent,
           fontFamily: 'Consolas, monospace',
-          fontSize: 17,
+          fontSize: 16,
           fontWeight: 700,
           letterSpacing: 0.5,
           textTransform: 'uppercase',
@@ -194,14 +194,14 @@ function DialogueLine({frame, startFrame, role, text, accent = colors.cyan, char
       <div
         style={{
           borderRadius: 18,
-          padding: '12px 14px',
+          padding: '10px 12px',
           background: isAgent ? 'rgba(95,240,177,0.10)' : 'rgba(255,255,255,0.05)',
           border: `1px solid ${isAgent ? 'rgba(95,240,177,0.24)' : 'rgba(255,255,255,0.08)'}`,
           color: colors.text,
           fontFamily: 'Consolas, monospace',
-          fontSize: 17,
-          lineHeight: 1.45,
-          minHeight: 52,
+          fontSize: 16,
+          lineHeight: 1.35,
+          minHeight: 46,
         }}
       >
         {visible}
@@ -283,20 +283,20 @@ function TerminalSceneOne({data}) {
     <AbsoluteFill style={{background: `radial-gradient(circle at 20% 20%, rgba(110,231,255,0.18), transparent 22%), radial-gradient(circle at 78% 18%, rgba(95,240,177,0.14), transparent 25%), linear-gradient(180deg, ${colors.bg0} 0%, ${colors.bg1} 100%)`}}>
       <Backdrop frame={frame} />
       <Shell title="DVRR Autopilot" subtitle="Run it yourself or hand it to an AI agent" frame={frame} duration={SCENE_LENGTH} accent={colors.green}>
-        <div style={{display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 24, alignItems: 'stretch'}}>
+        <div style={{display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 20, alignItems: 'start', transform: 'translateY(-28px)'}}>
           <div>
-            <div style={{fontFamily: 'Segoe UI, system-ui, sans-serif', fontSize: 54, lineHeight: 1.02, fontWeight: 800, color: colors.text, maxWidth: 560, transform: `translateY(${(1 - intro) * 18}px)`}}>
+            <div style={{fontFamily: 'Segoe UI, system-ui, sans-serif', fontSize: 44, lineHeight: 1.02, fontWeight: 800, color: colors.text, maxWidth: 520, transform: `translateY(${(1 - intro) * 16}px)`}}>
               One command. One AI agent. One answer.
             </div>
-            <div style={{marginTop: 16, color: colors.muted, fontFamily: 'Segoe UI, system-ui, sans-serif', fontSize: 20, lineHeight: 1.45, maxWidth: 560}}>
+            <div style={{marginTop: 12, color: colors.muted, fontFamily: 'Segoe UI, system-ui, sans-serif', fontSize: 16, lineHeight: 1.35, maxWidth: 500}}>
               It works as a CLI workflow for humans and as a copy-paste prompt for any compatible agent.
             </div>
           </div>
-          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18}}>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
             <Panel title="Run it yourself">
-              <div style={{marginBottom: 18, borderRadius: 22, background: 'rgba(6, 12, 20, 0.98)', border: `1px solid ${colors.stroke}`, padding: 20, boxShadow: '0 18px 40px rgba(0,0,0,0.28)'}}>
-                <CommandLine frame={frame} startFrame={cmdStart} text="python bootstrap.py --symbol GOOG" prefix="$" accent={colors.cyan} charsPerSecond={22} />
-                <OutputLine frame={frame} startFrame={112} text="bootstrap complete" prefix=">" accent={colors.green} charsPerSecond={24} />
+              <div style={{marginBottom: 14, borderRadius: 22, background: 'rgba(6, 12, 20, 0.98)', border: `1px solid ${colors.stroke}`, padding: 16, boxShadow: '0 18px 40px rgba(0,0,0,0.28)'}}>
+                <CommandLine frame={frame} startFrame={cmdStart} text="python run.py --symbol GOOG" prefix="$" accent={colors.cyan} charsPerSecond={22} />
+                <OutputLine frame={frame} startFrame={112} text="analysis ready" prefix=">" accent={colors.green} charsPerSecond={24} />
                 <OutputLine frame={frame} startFrame={172} text="portfolio loaded" prefix=">" accent={colors.text} charsPerSecond={24} />
                 <OutputLine frame={frame} startFrame={228} text="one holding selected" prefix=">" accent={colors.text} charsPerSecond={24} />
                 <OutputLine frame={frame} startFrame={280} text="final call: HOLD" prefix=">" accent={colors.green} charsPerSecond={24} />
@@ -308,15 +308,14 @@ function TerminalSceneOne({data}) {
               </div>
             </Panel>
             <Panel title="Talk to an AI agent">
-              <div style={{marginBottom: 18, borderRadius: 22, background: 'rgba(6, 12, 20, 0.98)', border: `1px solid ${colors.stroke}`, padding: 20, boxShadow: '0 18px 40px rgba(0,0,0,0.28)'}}>
-                <DialogueLine frame={frame} startFrame={28} role="User" text="Use DVRR Autopilot on my Public portfolio." accent={colors.cyan} charsPerSecond={22} />
-                <DialogueLine frame={frame} startFrame={150} role="Agent" text="Bootstrapping the skill now." accent={colors.green} charsPerSecond={22} />
-                <DialogueLine frame={frame} startFrame={236} role="Agent" text="Portfolio loaded. Final call: HOLD." accent={colors.green2} charsPerSecond={22} />
+              <div style={{marginBottom: 14, borderRadius: 22, background: 'rgba(6, 12, 20, 0.98)', border: `1px solid ${colors.stroke}`, padding: 16, boxShadow: '0 18px 40px rgba(0,0,0,0.28)' }}>
+                <DialogueLine frame={frame} startFrame={28} role="User" text="Use DVRR Autopilot on my portfolio." accent={colors.cyan} charsPerSecond={22} />
+                <DialogueLine frame={frame} startFrame={150} role="Agent" text="Bootstrapping skill now." accent={colors.green} charsPerSecond={22} />
+                <DialogueLine frame={frame} startFrame={236} role="Agent" text="Portfolio loaded. HOLD." accent={colors.green2} charsPerSecond={22} />
               </div>
               <div style={{display: 'flex', flexWrap: 'wrap'}}>
                 <Pill active color={colors.cyan}>promptable</Pill>
                 <Pill>CLI friendly</Pill>
-                <Pill>agent friendly</Pill>
               </div>
             </Panel>
           </div>
